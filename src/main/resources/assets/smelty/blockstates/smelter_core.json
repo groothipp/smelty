@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "smelty:block/smelter_core"
+    }
+  }
+}
