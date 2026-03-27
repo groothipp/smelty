@@ -1,6 +1,7 @@
 {
   "parent": "minecraft:block/template_anvil",
   "textures": {
-    "top": "minecraft:block/anvil_top"
+    "body": "smelty:block/crafting_anvil",
+    "top": "smelty:block/crafting_anvil_top"
   }
 }

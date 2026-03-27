@@ -1,8 +1,8 @@
 {
   "model": {
     "type": "minecraft:range_dispatch",
-    "property": "minecraft:damage",
-    "normalize": true,
+    "property": "minecraft:custom_model_data",
+    "index": 0,
     "fallback": {
       "type": "minecraft:model",
       "model": "smelty:item/heated_gold_ingot"

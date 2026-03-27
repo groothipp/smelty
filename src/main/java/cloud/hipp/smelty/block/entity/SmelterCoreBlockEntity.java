@@ -1,6 +1,7 @@
 package cloud.hipp.smelty.block.entity;
 
 import cloud.hipp.smelty.Smelty;
+import cloud.hipp.smelty.component.ModComponents;
 import cloud.hipp.smelty.item.HeatedIngotItem;
 import cloud.hipp.smelty.recipe.SmelterRecipes;
 import cloud.hipp.smelty.structure.SmelterValidator;
@@ -42,8 +43,10 @@ public class SmelterCoreBlockEntity extends BlockEntity {
 
     // ── Configuration ─────────────────────────────────────────────────
     private static final int VALIDATION_INTERVAL = 40;   // ticks between structure checks (2 sec)
-    private static final int PROCESSING_TIME = 80;        // ticks to smelt one item (4 seconds)
+    private static final int MIN_PROCESSING_TIME = 80;    // ticks for 1 item (4 seconds)
+    private static final int MAX_PROCESSING_TIME = 900;    // ticks for a full stack (45 seconds)
     private static final int ITEM_SCAN_INTERVAL = 5;      // ticks between item scans (4x/sec)
+    private static final int BATCH_SIZE = 64;             // process up to a full stack at once
 
     // ── State ─────────────────────────────────────────────────────────
     @Nullable private Direction gapDirection;
@@ -52,6 +55,7 @@ public class SmelterCoreBlockEntity extends BlockEntity {
     // Smelting state
     private int processingTimer = 0;          // counts UP to PROCESSING_TIME
     @Nullable private Item currentInput = null; // what we're currently smelting (null = idle)
+    private int currentBatchSize = 0;          // how many items in this batch
 
     // Timers
     private int validationTimer = 0;
@@ -120,10 +124,11 @@ public class SmelterCoreBlockEntity extends BlockEntity {
         }
 
         // ── Eject output when done ───────────────────────────────────
-        if (entity.processingTimer >= PROCESSING_TIME) {
+        if (entity.processingTimer >= entity.getProcessingTime()) {
             entity.ejectOutput(world);
             entity.processingTimer = 0;
             entity.currentInput = null;
+            entity.currentBatchSize = 0;
             entity.markDirty();
         }
     }
@@ -154,28 +159,45 @@ public class SmelterCoreBlockEntity extends BlockEntity {
 
         if (items.isEmpty()) return;
 
-        // Grab the first valid item
-        ItemEntity itemEntity = items.getFirst();
-        ItemStack stack = itemEntity.getStack();
+        // Absorb up to BATCH_SIZE items from all matching item entities
+        int absorbed = 0;
+        Item inputType = null;
 
-        // Remember what we're smelting
-        currentInput = stack.getItem();
+        for (ItemEntity itemEntity : items) {
+            if (absorbed >= BATCH_SIZE) break;
 
-        // Consume one item from the stack
-        if (stack.getCount() > 1) {
-            stack.decrement(1);
-        } else {
-            itemEntity.discard(); // remove the entity entirely
+            ItemStack stack = itemEntity.getStack();
+
+            // All items in a batch must be the same type
+            if (inputType == null) {
+                inputType = stack.getItem();
+            } else if (!stack.isOf(inputType)) {
+                continue;
+            }
+
+            int toTake = Math.min(stack.getCount(), BATCH_SIZE - absorbed);
+            if (toTake >= stack.getCount()) {
+                absorbed += stack.getCount();
+                itemEntity.discard();
+            } else {
+                stack.decrement(toTake);
+                absorbed += toTake;
+            }
         }
 
-        // Play absorption sound — item sizzles as it hits the heat
+        if (absorbed == 0) return;
+
+        currentInput = inputType;
+        currentBatchSize = absorbed;
+
+        // Play absorption sound — items sizzle as they hit the heat
         world.playSound(null, heatPos, SoundEvents.BLOCK_LAVA_EXTINGUISH,
                 SoundCategory.BLOCKS, 0.5f, 1.5f);
 
         processingTimer = 0;
         markDirty();
 
-        Smelty.LOGGER.info("Smelter absorbing: {}", currentInput);
+        Smelty.LOGGER.info("Smelter absorbing {} x {}", absorbed, currentInput);
     }
 
     /**
@@ -202,21 +224,30 @@ public class SmelterCoreBlockEntity extends BlockEntity {
         double vx = gapDirection.getOffsetX() * 0.15;
         double vz = gapDirection.getOffsetZ() * 0.15;
 
-        // ── Guaranteed output: 1 heated ingot ─────────────────────────
-        // Damage starts at 0 = freshly heated (full durability bar)
-        ItemStack output = new ItemStack(recipe.output(), 1);
+        // ── Output for the whole batch ────────────────────────────────
+        // Each item in the batch produces 1 guaranteed output.
+        // Each ore also rolls individually for a bonus ingot.
+        int guaranteedCount = currentBatchSize;
+        int bonusCount = 0;
 
+        if (recipe.bonusChance() > 0) {
+            for (int i = 0; i < currentBatchSize; i++) {
+                if (world.getRandom().nextFloat() < recipe.bonusChance()) {
+                    bonusCount++;
+                }
+            }
+        }
+
+        int totalOutput = guaranteedCount + bonusCount;
+
+        // Spawn as a single stacked item — all have the same HEAT_REMAINING so they stack
+        ItemStack output = new ItemStack(recipe.output(), totalOutput);
+        output.set(ModComponents.HEAT_REMAINING, HeatedIngotItem.MAX_HEAT_TICKS);
         ItemEntity outputEntity = new ItemEntity(world, x, y, z, output, vx, 0.1, vz);
         world.spawnEntity(outputEntity);
 
-        // ── Bonus roll: chance for a second ingot! ────────────────────
-        if (recipe.bonusChance() > 0 && world.getRandom().nextFloat() < recipe.bonusChance()) {
-            ItemStack bonus = new ItemStack(recipe.output(), 1);
-
-            // Slightly offset so the two items don't merge
-            ItemEntity bonusEntity = new ItemEntity(world, x, y + 0.2, z, bonus, vx * 0.8, 0.15, vz * 0.8);
-
-            Smelty.LOGGER.info("Bonus ingot! Lucky smelt from {}", currentInput);
+        if (bonusCount > 0) {
+            Smelty.LOGGER.info("Batch complete: {} + {} bonus from {} x {}", guaranteedCount, bonusCount, currentBatchSize, currentInput);
         }
 
         // ── Effects ───────────────────────────────────────────────────
@@ -251,6 +282,7 @@ public class SmelterCoreBlockEntity extends BlockEntity {
 
         // Save smelting progress so it survives chunk unloads / server restarts
         data.putInt("ProcessingTimer", processingTimer);
+        data.putInt("BatchSize", currentBatchSize);
         if (currentInput != null) {
             // Save the item's registry name (e.g., "minecraft:raw_iron")
             var key = net.minecraft.registry.Registries.ITEM.getId(currentInput);
@@ -275,6 +307,7 @@ public class SmelterCoreBlockEntity extends BlockEntity {
         });
 
         processingTimer = data.getInt("ProcessingTimer", 0);
+        currentBatchSize = data.getInt("BatchSize", 0);
         data.getOptionalString("CurrentInput").ifPresent(id -> {
             var identifier = net.minecraft.util.Identifier.tryParse(id);
             if (identifier != null) {
@@ -284,6 +317,16 @@ public class SmelterCoreBlockEntity extends BlockEntity {
     }
 
     // ── Getters ───────────────────────────────────────────────────────
+
+    /**
+     * Calculates processing time based on batch size.
+     * Scales linearly: 1 item = 4 sec (80 ticks), 64 items = 30 sec (600 ticks).
+     */
+    private int getProcessingTime() {
+        if (currentBatchSize <= 1) return MIN_PROCESSING_TIME;
+        if (currentBatchSize >= 64) return MAX_PROCESSING_TIME;
+        return MIN_PROCESSING_TIME + (currentBatchSize - 1) * (MAX_PROCESSING_TIME - MIN_PROCESSING_TIME) / 63;
+    }
 
     @Nullable public Direction getGapDirection() { return gapDirection; }
     @Nullable public BlockPos getHeatPos() { return heatPos; }

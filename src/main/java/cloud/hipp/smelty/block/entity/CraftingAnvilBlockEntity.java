@@ -47,6 +47,10 @@ public class CraftingAnvilBlockEntity extends BlockEntity {
     private int materialCount = 0;
     @Nullable private Item materialType = null;
 
+    // Random Y rotations assigned when items are placed, for natural rendering
+    private final java.util.List<Float> stickRotations = new java.util.ArrayList<>();
+    private final java.util.List<Float> materialRotations = new java.util.ArrayList<>();
+
     private static final int MAX_STICKS = 2;
     private static final int MAX_MATERIALS = 8; // up to 8 for chestplate
 
@@ -65,6 +69,7 @@ public class CraftingAnvilBlockEntity extends BlockEntity {
                 return false;
             }
             stickCount++;
+            stickRotations.add((float)(Math.random() * 40 - 20)); // -20 to +20 degrees
             if (!player.isCreative()) stack.decrement(1);
             syncToClient();
             sendStatus(player);
@@ -86,6 +91,7 @@ public class CraftingAnvilBlockEntity extends BlockEntity {
 
             materialType = stack.getItem();
             materialCount++;
+            materialRotations.add((float)(Math.random() * 40 - 20)); // -20 to +20 degrees
             if (!player.isCreative()) stack.decrement(1);
             syncToClient();
             sendStatus(player);
@@ -104,6 +110,7 @@ public class CraftingAnvilBlockEntity extends BlockEntity {
     public boolean tryRemoveItem(PlayerEntity player, World world) {
         if (materialCount > 0) {
             materialCount--;
+            if (!materialRotations.isEmpty()) materialRotations.removeLast();
             if (!player.isCreative()) {
                 giveOrDrop(player, new ItemStack(materialType, 1));
             }
@@ -117,6 +124,7 @@ public class CraftingAnvilBlockEntity extends BlockEntity {
 
         if (stickCount > 0) {
             stickCount--;
+            if (!stickRotations.isEmpty()) stickRotations.removeLast();
             if (!player.isCreative()) {
                 giveOrDrop(player, new ItemStack(Items.STICK, 1));
             }
@@ -156,6 +164,8 @@ public class CraftingAnvilBlockEntity extends BlockEntity {
         stickCount = 0;
         materialCount = 0;
         materialType = null;
+        stickRotations.clear();
+        materialRotations.clear();
         syncToClient();
 
         ItemStack result = new ItemStack(output, 1);
@@ -234,6 +244,8 @@ public class CraftingAnvilBlockEntity extends BlockEntity {
     public int getStickCount() { return stickCount; }
     public int getMaterialCount() { return materialCount; }
     @Nullable public Item getMaterialType() { return materialType; }
+    public java.util.List<Float> getStickRotations() { return stickRotations; }
+    public java.util.List<Float> getMaterialRotations() { return materialRotations; }
 
     // ── Data Persistence ──────────────────────────────────────────────
 
@@ -242,6 +254,13 @@ public class CraftingAnvilBlockEntity extends BlockEntity {
         super.writeData(data);
         data.putInt("StickCount", stickCount);
         data.putInt("MaterialCount", materialCount);
+        // Save rotations as parallel int arrays (degrees * 100 for precision)
+        int[] sr = new int[stickRotations.size()];
+        for (int i = 0; i < stickRotations.size(); i++) sr[i] = Math.round(stickRotations.get(i) * 100);
+        data.putIntArray("StickRots", sr);
+        int[] mr = new int[materialRotations.size()];
+        for (int i = 0; i < materialRotations.size(); i++) mr[i] = Math.round(materialRotations.get(i) * 100);
+        data.putIntArray("MaterialRots", mr);
         if (materialType != null) {
             var key = net.minecraft.registry.Registries.ITEM.getId(materialType);
             if (key != null) {
@@ -255,6 +274,14 @@ public class CraftingAnvilBlockEntity extends BlockEntity {
         super.readData(data);
         stickCount = data.getInt("StickCount", 0);
         materialCount = data.getInt("MaterialCount", 0);
+        stickRotations.clear();
+        data.getOptionalIntArray("StickRots").ifPresent(arr -> {
+            for (int v : arr) stickRotations.add(v / 100f);
+        });
+        materialRotations.clear();
+        data.getOptionalIntArray("MaterialRots").ifPresent(arr -> {
+            for (int v : arr) materialRotations.add(v / 100f);
+        });
         data.getOptionalString("MaterialType").ifPresent(id -> {
             var identifier = net.minecraft.util.Identifier.tryParse(id);
             if (identifier != null) {

@@ -1,6 +1,7 @@
 package cloud.hipp.smelty.item;
 
 import cloud.hipp.smelty.Smelty;
+import cloud.hipp.smelty.component.ModComponents;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroups;
@@ -30,7 +31,7 @@ public class ModItems {
             new Item.Settings()
                     .registryKey(RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, "heated_iron_ingot")))
                     .useItemPrefixedTranslationKey()
-                    .maxDamage(HeatedIngotItem.MAX_HEAT_TICKS) // durability = heat gauge
+                    .component(ModComponents.HEAT_REMAINING, HeatedIngotItem.MAX_HEAT_TICKS)
     );
 
     public static final Item HEATED_GOLD_INGOT = registerItem(
@@ -39,7 +40,7 @@ public class ModItems {
             new Item.Settings()
                     .registryKey(RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, "heated_gold_ingot")))
                     .useItemPrefixedTranslationKey()
-                    .maxDamage(HeatedIngotItem.MAX_HEAT_TICKS)
+                    .component(ModComponents.HEAT_REMAINING, HeatedIngotItem.MAX_HEAT_TICKS)
     );
 
     public static final Item HEATED_COPPER_INGOT = registerItem(
@@ -48,7 +49,7 @@ public class ModItems {
             new Item.Settings()
                     .registryKey(RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, "heated_copper_ingot")))
                     .useItemPrefixedTranslationKey()
-                    .maxDamage(HeatedIngotItem.MAX_HEAT_TICKS)
+                    .component(ModComponents.HEAT_REMAINING, HeatedIngotItem.MAX_HEAT_TICKS)
     );
 
     // ── Tools ───────────────────────────────────────────────────────
