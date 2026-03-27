@@ -145,6 +145,8 @@ Smelty disables the following vanilla recipes to enforce the new progression:
 2. Install [Fabric API](https://modrinth.com/mod/fabric-api)
 3. Drop `smelty-1.0.0.jar` into your `mods/` folder
 
+**Multiplayer:** Smelty is required on both the server and all connecting clients.
+
 ---
 
 ## Building from Source
