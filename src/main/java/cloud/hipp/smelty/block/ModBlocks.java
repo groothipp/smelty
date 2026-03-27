@@ -1,8 +1,10 @@
 package cloud.hipp.smelty.block;
 
 import cloud.hipp.smelty.Smelty;
+import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
+import net.minecraft.item.ItemGroups;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
@@ -16,6 +18,21 @@ import java.util.function.Function;
 public class ModBlocks {
 
     // ── Blocks ────────────────────────────────────────────────────────
+
+    /**
+     * The Crafting Anvil — where players forge heated ingots into tools.
+     * Uses the vanilla anvil model but with custom right-click behavior.
+     */
+    public static final Block CRAFTING_ANVIL = registerBlock(
+            "crafting_anvil",
+            CraftingAnvilBlock::new,
+            AbstractBlock.Settings.create()
+                    .strength(5.0f, 1200.0f)     // tough like vanilla anvil
+                    .requiresTool()
+                    .nonOpaque()                  // don't cull adjacent block faces (anvil isn't a full cube)
+                    .sounds(net.minecraft.sound.BlockSoundGroup.ANVIL)
+                    .registryKey(RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(Smelty.MOD_ID, "crafting_anvil")))
+    );
 
     /**
      * The Smelter Core — an invisible, non-solid block placed inside the structure.
@@ -70,5 +87,10 @@ public class ModBlocks {
 
     public static void initialize() {
         Smelty.LOGGER.info("Registering Smelty blocks...");
+
+        // Add crafting anvil to the Functional Blocks creative tab
+        ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register(entries -> {
+            entries.add(CRAFTING_ANVIL);
+        });
     }
 }

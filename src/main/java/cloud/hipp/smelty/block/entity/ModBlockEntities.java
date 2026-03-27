@@ -26,6 +26,12 @@ public class ModBlockEntities {
             FabricBlockEntityTypeBuilder.create(SmelterCoreBlockEntity::new, ModBlocks.SMELTER_CORE).build()
     );
 
+    public static final BlockEntityType<CraftingAnvilBlockEntity> CRAFTING_ANVIL = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Smelty.MOD_ID, "crafting_anvil"),
+            FabricBlockEntityTypeBuilder.create(CraftingAnvilBlockEntity::new, ModBlocks.CRAFTING_ANVIL).build()
+    );
+
     public static void initialize() {
         Smelty.LOGGER.info("Registering Smelty block entities...");
     }

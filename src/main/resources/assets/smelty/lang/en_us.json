@@ -1,2 +1,7 @@
 {
+  "block.smelty.crafting_anvil": "Crafting Anvil",
+  "item.smelty.hammer": "Hammer",
+  "item.smelty.heated_iron_ingot": "Heated Iron Ingot",
+  "item.smelty.heated_gold_ingot": "Heated Gold Ingot",
+  "item.smelty.heated_copper_ingot": "Heated Copper Ingot"
 }

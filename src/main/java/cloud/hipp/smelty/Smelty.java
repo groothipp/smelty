@@ -2,10 +2,14 @@ package cloud.hipp.smelty;
 
 import cloud.hipp.smelty.block.ModBlocks;
 import cloud.hipp.smelty.block.entity.ModBlockEntities;
+import cloud.hipp.smelty.component.ModComponents;
+import cloud.hipp.smelty.block.entity.CraftingAnvilBlockEntity;
 import cloud.hipp.smelty.block.entity.SmelterCoreBlockEntity;
 import cloud.hipp.smelty.item.ModItems;
+import cloud.hipp.smelty.item.HammerItem;
 import cloud.hipp.smelty.structure.SmelterValidator;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.CampfireBlock;
@@ -31,12 +35,14 @@ public class Smelty implements ModInitializer {
 		// ── Registration ──────────────────────────────────────────────
 		// Order matters! Blocks must be registered before block entities,
 		// because ModBlockEntities.SMELTER_CORE references ModBlocks.SMELTER_CORE.
+		ModComponents.initialize();  // Components first — items reference them
 		ModBlocks.initialize();
 		ModBlockEntities.initialize();
 		ModItems.initialize();
 
 		// ── Event Handlers ────────────────────────────────────────────
 		registerFlintAndSteelHandler();
+		registerAnvilHammerHandler();
 
 		LOGGER.info("Smelty initialized!");
 	}
@@ -178,6 +184,48 @@ public class Smelty implements ModInitializer {
 
 			// Return SUCCESS on both client and server to prevent normal flint & steel behavior
 			return ActionResult.SUCCESS;
+		});
+	}
+
+	/**
+	 * Registers the left-click (attack) handler for the crafting anvil.
+	 *
+	 * AttackBlockCallback fires when a player left-clicks a block.
+	 * We use this so the player can "hammer" the anvil with an iron pickaxe.
+	 *
+	 * Signature: (player, world, hand, blockPos, direction) → ActionResult
+	 *   PASS = continue normal behavior (start breaking block)
+	 *   SUCCESS = handled, don't break the block
+	 */
+	private void registerAnvilHammerHandler() {
+		AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+			// Only handle our crafting anvil
+			if (!world.getBlockState(pos).isOf(ModBlocks.CRAFTING_ANVIL)) {
+				return ActionResult.PASS;
+			}
+
+			var stack = player.getStackInHand(hand);
+
+			// Hammer time!
+			if (stack.isOf(ModItems.HAMMER)) {
+				if (!world.isClient()) {
+					var be = world.getBlockEntity(pos);
+					if (be instanceof CraftingAnvilBlockEntity anvil) {
+						anvil.tryCraft(player, world);
+					}
+				}
+				return ActionResult.SUCCESS; // Prevent block breaking
+			}
+
+			// Empty hand on a non-empty anvil — prevent breaking, show status
+			if (stack.isEmpty()) {
+				var be = world.getBlockEntity(pos);
+				if (be instanceof CraftingAnvilBlockEntity anvil && !anvil.isEmpty()) {
+					return ActionResult.SUCCESS; // Prevent accidental breaking
+				}
+			}
+
+			return ActionResult.PASS;
 		});
 	}
 }

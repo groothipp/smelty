@@ -1,5 +1,6 @@
 package cloud.hipp.smelty.structure;
 
+import cloud.hipp.smelty.block.ModBlocks;
 import cloud.hipp.smelty.tag.ModTags;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.CampfireBlock;
@@ -85,7 +86,9 @@ public class SmelterValidator {
         for (int yOffset = 1; yOffset <= 2; yOffset++) {
             BlockPos center = heatPos.up(yOffset);
 
-            if (!world.getBlockState(center).isAir()) {
+            // Center must be air OR our smelter core (which we place at y+1)
+            BlockState centerState = world.getBlockState(center);
+            if (!centerState.isAir() && !centerState.isOf(ModBlocks.SMELTER_CORE)) {
                 return ValidationResult.INVALID;
             }
 
