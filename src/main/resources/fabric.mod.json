@@ -1,0 +1,37 @@
+{
+	"schemaVersion": 1,
+	"id": "smelty",
+	"version": "${version}",
+	"name": "Smelty",
+	"description": "Multiblock smelting for vanilla ore processing",
+	"authors": [
+		"Groot"
+	],
+	"contact": {
+		"homepage": "https://github.com/groothipp/smelty",
+		"sources": "https://github.com/groothipp/smelty"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/smelty/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"cloud.hipp.smelty.Smelty"
+		],
+		"fabric-datagen": [
+			"cloud.hipp.smelty.SmeltyDataGenerator"
+		],
+		"client": [
+			"cloud.hipp.smelty.SmeltyClient"
+		]
+	},
+	"mixins": [
+		"smelty.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.18.5",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
