@@ -18,6 +18,9 @@
 		"main": [
 			"cloud.hipp.smelty.Smelty"
 		],
+		"client": [
+			"cloud.hipp.smelty.SmeltyClient"
+		],
 		"fabric-datagen": [
 			"cloud.hipp.smelty.SmeltyDataGenerator"
 		]

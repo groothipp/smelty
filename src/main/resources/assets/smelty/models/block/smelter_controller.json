@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "north": "smelty:block/smelter_controller_front",
+    "south": "smelty:block/smelter_block",
+    "east": "smelty:block/smelter_block",
+    "west": "smelty:block/smelter_block",
+    "up": "smelty:block/smelter_block",
+    "down": "smelty:block/smelter_block",
+    "particle": "smelty:block/smelter_block"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "smelty:block/smelter_controller" },
+    "facing=south": { "model": "smelty:block/smelter_controller", "y": 180 },
+    "facing=west": { "model": "smelty:block/smelter_controller", "y": 270 },
+    "facing=east": { "model": "smelty:block/smelter_controller", "y": 90 }
+  }
+}
