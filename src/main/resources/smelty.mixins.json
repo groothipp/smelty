@@ -3,8 +3,7 @@
 	"package": "cloud.hipp.smelty.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin",
-		"ItemEntityMixin"
+		"ExampleMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

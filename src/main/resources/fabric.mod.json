@@ -3,13 +3,13 @@
 	"id": "smelty",
 	"version": "${version}",
 	"name": "Smelty",
-	"description": "Multiblock smelting for vanilla ore processing",
+	"description": "This is an example description! Tell everyone what your mod is about!",
 	"authors": [
-		"Groot"
+		"Me!"
 	],
 	"contact": {
-		"homepage": "https://github.com/groothipp/smelty",
-		"sources": "https://github.com/groothipp/smelty"
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/smelty/icon.png",
@@ -20,9 +20,6 @@
 		],
 		"fabric-datagen": [
 			"cloud.hipp.smelty.SmeltyDataGenerator"
-		],
-		"client": [
-			"cloud.hipp.smelty.SmeltyClient"
 		]
 	},
 	"mixins": [
