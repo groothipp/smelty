@@ -1,5 +1,5 @@
 {
-  "type": "minecraft:smelting",
+  "type": "minecraft:blasting",
   "ingredient": "minecraft:stone_bricks",
   "result": {
     "id": "smelty:smelter_block"
