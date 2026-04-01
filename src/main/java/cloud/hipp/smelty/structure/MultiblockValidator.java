@@ -2,15 +2,19 @@ package cloud.hipp.smelty.structure;
 
 import cloud.hipp.smelty.block.SmelterBlock;
 import cloud.hipp.smelty.block.SmelterControllerBlock;
+import cloud.hipp.smelty.block.SmeltyBlocks;
+import cloud.hipp.smelty.block.SolidAlloyBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.CampfireBlock;
+import net.minecraft.block.FluidBlock;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public class MultiblockValidator {
 	public static final int MIN_SIZE = 3;
 	public static final int MAX_SIZE = 10;
+	public static final int MAX_HEIGHT = 9;
 
 	public record Result(boolean valid, int width, int depth, int height, int heatLevel, int minX, int minY, int minZ) {
 		public static final Result INVALID = new Result(false, 0, 0, 0, 0, 0, 0, 0);
@@ -24,7 +28,7 @@ public class MultiblockValidator {
 	public static Result validate(World world, BlockPos controllerPos) {
 		for (int w = MIN_SIZE; w <= MAX_SIZE; w++) {
 			for (int d = MIN_SIZE; d <= MAX_SIZE; d++) {
-				for (int h = MIN_SIZE; h <= MAX_SIZE; h++) {
+				for (int h = MIN_SIZE; h <= MAX_HEIGHT; h++) {
 					Result result = tryAllPositions(world, controllerPos, w, d, h);
 					if (result.valid()) {
 						return result;
@@ -82,6 +86,11 @@ public class MultiblockValidator {
 		return 0;
 	}
 
+	private static boolean isAlloyBlock(BlockState state) {
+		return (state.getBlock() instanceof FluidBlock && state.isOf(SmeltyBlocks.MOLTEN_ALLOY_BLOCK))
+				|| state.getBlock() instanceof SolidAlloyBlock;
+	}
+
 	private static boolean isHeatSourceOrAir(BlockState state) {
 		return state.isAir() || state.getBlock() instanceof CampfireBlock || state.isOf(Blocks.LAVA);
 	}
@@ -114,7 +123,7 @@ public class MultiblockValidator {
 								return Result.INVALID;
 							}
 						} else {
-							if (!state.isAir()) return Result.INVALID;
+							if (!state.isAir() && !isAlloyBlock(state)) return Result.INVALID;
 						}
 					}
 				}

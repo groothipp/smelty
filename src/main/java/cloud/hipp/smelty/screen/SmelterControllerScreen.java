@@ -1,5 +1,6 @@
 package cloud.hipp.smelty.screen;
 
+import cloud.hipp.smelty.material.SmeltyMaterial;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
@@ -10,6 +11,8 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
+import java.util.Map;
+
 public class SmelterControllerScreen extends HandledScreen<SmelterControllerScreenHandler> {
 	// Max heat: 8x8 interior of 10x10 smelter, all lava (64 * 50 = 3200)
 	private static final int MAX_HEAT_DISPLAY = 3200;
@@ -17,11 +20,12 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 	private static final int HEAT_BAR_WIDTH = 18;
 	private static final int BAR_HEIGHT = 52;
 	private static final int VOLUME_BAR_WIDTH = 110;
+	private static final int INGOT_ML = 111;
 
 	public SmelterControllerScreen(SmelterControllerScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title);
 		this.backgroundWidth = 200;
-		this.backgroundHeight = 100;
+		this.backgroundHeight = 166;
 	}
 
 	@Override
@@ -77,6 +81,74 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 		int volLabelW = textRenderer.getWidth(volLabel);
 		context.drawTextWithShadow(textRenderer, Text.literal(volLabel),
 				volumeBarX + (VOLUME_BAR_WIDTH - volLabelW) / 2, barY + BAR_HEIGHT + 16, 0xFFAAAAAA);
+
+		// === Alloy composition section ===
+		int compositionY = barY + BAR_HEIGHT + 30;
+		drawComposition(context, compositionY, data);
+	}
+
+	private void drawComposition(DrawContext context, int startY, SmelterData data) {
+		boolean hasMolten = !data.moltenBreakdown().isEmpty();
+		boolean hasSolid = data.solidVolumeMl() > 0;
+
+		if (!hasMolten && !hasSolid) return;
+
+		// Separator line
+		context.fill(10, startY - 2, backgroundWidth - 10, startY - 1, 0xFF444444);
+
+		int y = startY;
+
+		if (hasMolten) {
+			context.drawTextWithShadow(textRenderer, Text.literal("Molten Alloy:"),
+					10, y, 0xFFFFAA00);
+			y += 12;
+
+			int totalMl = 0;
+			for (int ml : data.moltenBreakdown().values()) {
+				totalMl += ml;
+			}
+
+			for (Map.Entry<SmeltyMaterial, Integer> entry : data.moltenBreakdown().entrySet()) {
+				SmeltyMaterial material = entry.getKey();
+				int ml = entry.getValue();
+				int pct = totalMl > 0 ? (ml * 100 / totalMl) : 0;
+				String ingotStr = formatIngots(ml);
+
+				String line = material.getDisplayName() + " - " + ingotStr + " (" + pct + "%)";
+				context.drawTextWithShadow(textRenderer, Text.literal(line),
+						14, y, getMaterialColor(material));
+				y += 11;
+			}
+		}
+
+		if (hasSolid) {
+			if (hasMolten) y += 2;
+			context.drawTextWithShadow(textRenderer, Text.literal("Solid Alloy"),
+					10, y, 0xFF888888);
+		}
+	}
+
+	private String formatIngots(int ml) {
+		if (ml >= 1000 && ml % 1000 == 0) {
+			int blocks = ml / 1000;
+			return blocks + (blocks == 1 ? " block" : " blocks");
+		}
+		double ingots = ml / (double) INGOT_ML;
+		if (Math.abs(ingots - Math.round(ingots)) < 0.01) {
+			int whole = (int) Math.round(ingots);
+			return whole + (whole == 1 ? " ingot" : " ingots");
+		}
+		return String.format("%.1f ingots", ingots);
+	}
+
+	private int getMaterialColor(SmeltyMaterial material) {
+		return switch (material) {
+			case COPPER -> 0xFFE07040;
+			case IRON -> 0xFFD0D0D0;
+			case GOLD -> 0xFFFFDD44;
+			case DIAMOND -> 0xFF44EEDD;
+			case NETHERITE -> 0xFF5C4033;
+		};
 	}
 
 	private void drawHeatBar(DrawContext context, int barX, int barY, int heatLevel) {
@@ -99,8 +171,6 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 			Sprite lavaSprite = context.getSprite(lavaId);
 
 			// Draw lava texture stretched into the fill area
-			// drawSpriteStretched uses absolute screen coordinates, but we're in
-			// drawForeground which has the matrix translated by (this.x, this.y)
 			context.drawSpriteStretched(RenderPipelines.GUI_TEXTURED, lavaSprite,
 					barX, fillTop, HEAT_BAR_WIDTH, fillHeight);
 		}

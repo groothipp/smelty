@@ -1,4 +1,6 @@
 {
   "block.smelty.smelter_block": "Smelter Block",
-  "block.smelty.smelter_controller": "Smelter Controller"
+  "block.smelty.smelter_controller": "Smelter Controller",
+  "block.smelty.molten_alloy": "Molten Alloy",
+  "block.smelty.solid_alloy": "Solid Alloy"
 }

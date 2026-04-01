@@ -1,0 +1,12 @@
+package cloud.hipp.smelty.material;
+
+public enum MaterialProperty {
+	HARDNESS,
+	TOUGHNESS,
+	MELTING_POINT,
+	MALLEABILITY,
+	DUCTILITY,
+	DENSITY,
+	CORROSION_RESISTANCE,
+	THERMAL_CONDUCTIVITY
+}

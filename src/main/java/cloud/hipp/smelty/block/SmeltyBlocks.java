@@ -1,8 +1,10 @@
 package cloud.hipp.smelty.block;
 
 import cloud.hipp.smelty.Smelty;
+import cloud.hipp.smelty.fluid.SmeltyFluids;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
+import net.minecraft.block.FluidBlock;
 import net.minecraft.block.MapColor;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -31,6 +33,34 @@ public class SmeltyBlocks {
 					.sounds(BlockSoundGroup.DEEPSLATE_BRICKS)
 					.requiresTool()
 	);
+
+	public static final Block MOLTEN_ALLOY_BLOCK = registerDirect("molten_alloy",
+			new MoltenAlloyBlock(SmeltyFluids.MOLTEN_ALLOY_STILL,
+					AbstractBlock.Settings.create()
+							.mapColor(MapColor.ORANGE)
+							.noCollision()
+							.strength(100.0F)
+							.dropsNothing()
+							.liquid()
+							.replaceable()
+							.registryKey(RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(Smelty.MOD_ID, "molten_alloy")))
+			)
+	);
+
+	public static final Block SOLID_ALLOY = register("solid_alloy",
+			SolidAlloyBlock::new,
+			AbstractBlock.Settings.create()
+					.mapColor(MapColor.GRAY)
+					.strength(2.0F, 6.0F)
+					.sounds(BlockSoundGroup.METAL)
+					.requiresTool()
+					.dropsNothing() // We handle drops manually in onStateReplaced
+	);
+
+	private static Block registerDirect(String id, Block block) {
+		RegistryKey<Block> key = RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(Smelty.MOD_ID, id));
+		return Registry.register(Registries.BLOCK, key, block);
+	}
 
 	private static Block register(String id, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {
 		RegistryKey<Block> key = RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(Smelty.MOD_ID, id));

@@ -2,6 +2,7 @@ package cloud.hipp.smelty;
 
 import cloud.hipp.smelty.block.SmeltyBlocks;
 import cloud.hipp.smelty.block.entity.SmeltyBlockEntities;
+import cloud.hipp.smelty.fluid.SmeltyFluids;
 import cloud.hipp.smelty.item.SmeltyItems;
 import cloud.hipp.smelty.screen.SmeltyScreenHandlers;
 import net.fabricmc.api.ModInitializer;
@@ -15,6 +16,7 @@ public class Smelty implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		SmeltyFluids.initialize();
 		SmeltyBlocks.initialize();
 		SmeltyBlockEntities.initialize();
 		SmeltyItems.initialize();

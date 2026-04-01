@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "smelty:block/solid_alloy"
+    }
+  }
+}

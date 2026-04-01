@@ -16,6 +16,13 @@ public class SmeltyBlockEntities {
 					FabricBlockEntityTypeBuilder.create(SmelterControllerBlockEntity::new, SmeltyBlocks.SMELTER_CONTROLLER).build()
 			);
 
+	public static final BlockEntityType<SolidAlloyBlockEntity> SOLID_ALLOY =
+			Registry.register(
+					Registries.BLOCK_ENTITY_TYPE,
+					Identifier.of(Smelty.MOD_ID, "solid_alloy"),
+					FabricBlockEntityTypeBuilder.create(SolidAlloyBlockEntity::new, SmeltyBlocks.SOLID_ALLOY).build()
+			);
+
 	public static void initialize() {
 	}
 }

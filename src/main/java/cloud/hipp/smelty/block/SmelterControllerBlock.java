@@ -13,6 +13,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.EnumProperty;
 import net.minecraft.state.property.Properties;
@@ -71,10 +72,23 @@ public class SmelterControllerBlock extends BlockWithEntity {
 	}
 
 	@Override
+	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+		BlockEntity be = world.getBlockEntity(pos);
+		if (be instanceof SmelterControllerBlockEntity controller) {
+			controller.clearAllInteriorBlocks(world);
+		}
+		super.onStateReplaced(state, world, pos, moved);
+	}
+
+	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
 		if (!world.isClient()) {
 			BlockEntity be = world.getBlockEntity(pos);
 			if (be instanceof SmelterControllerBlockEntity controller) {
+				if (!controller.isValid()) {
+					player.sendMessage(net.minecraft.text.Text.literal("Smelter structure is not formed"), true);
+					return ActionResult.CONSUME;
+				}
 				player.openHandledScreen(controller);
 			}
 		}
