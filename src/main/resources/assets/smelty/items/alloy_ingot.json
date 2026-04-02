@@ -1,7 +1,7 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "smelty:item/alloy_plate",
+    "model": "smelty:item/alloy_ingot",
     "tints": [
       {
         "type": "minecraft:custom_model_data",

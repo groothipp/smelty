@@ -1,66 +1,6 @@
 {
-  "parent": "minecraft:block/block",
+  "parent": "minecraft:item/generated",
   "textures": {
-    "iron": "minecraft:block/iron_block",
-    "particle": "minecraft:block/iron_block"
-  },
-  "elements": [
-    {
-      "comment": "Base plate",
-      "from": [0, 0, 0],
-      "to": [16, 2, 16],
-      "faces": {
-        "down":  { "texture": "#iron" },
-        "up":    { "texture": "#iron" },
-        "north": { "texture": "#iron" },
-        "south": { "texture": "#iron" },
-        "east":  { "texture": "#iron" },
-        "west":  { "texture": "#iron" }
-      }
-    },
-    {
-      "comment": "North rim",
-      "from": [0, 2, 0],
-      "to": [16, 5, 5],
-      "faces": {
-        "north": { "texture": "#iron" },
-        "south": { "texture": "#iron" },
-        "east":  { "texture": "#iron" },
-        "west":  { "texture": "#iron" },
-        "up":    { "texture": "#iron" }
-      }
-    },
-    {
-      "comment": "South rim",
-      "from": [0, 2, 11],
-      "to": [16, 5, 16],
-      "faces": {
-        "north": { "texture": "#iron" },
-        "south": { "texture": "#iron" },
-        "east":  { "texture": "#iron" },
-        "west":  { "texture": "#iron" },
-        "up":    { "texture": "#iron" }
-      }
-    },
-    {
-      "comment": "West rim",
-      "from": [0, 2, 5],
-      "to": [5, 5, 11],
-      "faces": {
-        "east":  { "texture": "#iron" },
-        "west":  { "texture": "#iron" },
-        "up":    { "texture": "#iron" }
-      }
-    },
-    {
-      "comment": "East rim",
-      "from": [11, 2, 5],
-      "to": [16, 5, 11],
-      "faces": {
-        "east":  { "texture": "#iron" },
-        "west":  { "texture": "#iron" },
-        "up":    { "texture": "#iron" }
-      }
-    }
-  ]
+    "layer0": "smelty:item/nugget_mold"
+  }
 }

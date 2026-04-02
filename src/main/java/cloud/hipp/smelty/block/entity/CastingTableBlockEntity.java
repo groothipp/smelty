@@ -7,6 +7,8 @@ import cloud.hipp.smelty.material.SmeltyMaterial;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
@@ -100,6 +102,23 @@ public class CastingTableBlockEntity extends BlockEntity {
 	}
 
 	/**
+	 * Compute the output item that would be produced, without side effects.
+	 * Used by the renderer to display the solidified result.
+	 */
+	public ItemStack computeOutputItem() {
+		if (!solidified || fluidComposition.isEmpty()) return ItemStack.EMPTY;
+		Item patItem = patternItem.getItem();
+		if (hasPattern() && isMold(patItem)) {
+			return createMoldOutput(patItem);
+		} else if (hasPattern() && isPureIron()) {
+			Item moldItem = getMoldForRawPattern(patternItem);
+			return moldItem != null ? new ItemStack(moldItem) : createPlateOutput();
+		} else {
+			return createPlateOutput();
+		}
+	}
+
+	/**
 	 * Add fluid from a channel. Returns amount accepted.
 	 */
 	public int addFluid(AlloyComposition source, int amountMl) {
@@ -183,6 +202,27 @@ public class CastingTableBlockEntity extends BlockEntity {
 			return true;
 		}
 
+		if (hasPattern() && !held.isEmpty() && isMold(held.getItem()) && isMold(patternItem.getItem())) {
+			if (held.getItem() == patternItem.getItem()) {
+				// Same mold: remove it
+				giveOrDrop(player, patternItem.copy());
+				patternItem = ItemStack.EMPTY;
+				capacity = DEFAULT_CAPACITY;
+			} else {
+				// Different mold: swap
+				giveOrDrop(player, patternItem.copy());
+				patternItem = held.copyWithCount(1);
+				held.decrement(1);
+				capacity = capacityForPattern(patternItem);
+			}
+			needsSync = true;
+			markDirty();
+			if (world instanceof ServerWorld sw) {
+				sw.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
+			}
+			return true;
+		}
+
 		if (!hasPattern() && !held.isEmpty() && isValidPattern(held)) {
 			// Place pattern
 			patternItem = held.copyWithCount(1);
@@ -210,7 +250,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 				|| isMold(item);
 	}
 
-	private static boolean isMold(Item item) {
+	public static boolean isMold(Item item) {
 		return item == SmeltyItems.INGOT_MOLD
 				|| item == SmeltyItems.NUGGET_MOLD
 				|| item == SmeltyItems.ROD_MOLD;
@@ -273,14 +313,20 @@ public class CastingTableBlockEntity extends BlockEntity {
 		if (materials.size() == 1) {
 			SmeltyMaterial material = materials.keySet().iterator().next();
 			if (mold == SmeltyItems.INGOT_MOLD) {
-				Item ingot = MaterialItems.getIngotItem(material);
+				Item ingot = SmeltyItems.getCastIngot(material);
 				if (ingot != null) return new ItemStack(ingot);
 			} else if (mold == SmeltyItems.NUGGET_MOLD) {
-				Item nugget = MaterialItems.getNuggetItem(material);
+				Item nugget = SmeltyItems.getCastNugget(material);
 				if (nugget != null) return new ItemStack(nugget);
+			} else if (mold == SmeltyItems.ROD_MOLD) {
+				Item rod = SmeltyItems.getRodForMaterial(material);
+				if (rod != null) return new ItemStack(rod);
 			}
 		}
-		// Mixed alloy or no vanilla equivalent — produce a plate as fallback
+		// Mixed alloy fallback
+		if (mold == SmeltyItems.INGOT_MOLD) return createAlloyStack(SmeltyItems.ALLOY_INGOT);
+		if (mold == SmeltyItems.NUGGET_MOLD) return createAlloyStack(SmeltyItems.ALLOY_NUGGET);
+		if (mold == SmeltyItems.ROD_MOLD) return createAlloyStack(SmeltyItems.ALLOY_ROD);
 		return createPlateOutput();
 	}
 
@@ -302,7 +348,16 @@ public class CastingTableBlockEntity extends BlockEntity {
 			}
 		}
 		// Mixed alloy → alloy plate
-		return new ItemStack(SmeltyItems.ALLOY_PLATE);
+		return createAlloyStack(SmeltyItems.ALLOY_PLATE);
+	}
+
+	private ItemStack createAlloyStack(Item item) {
+		ItemStack stack = new ItemStack(item);
+		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
+				new CustomModelDataComponent(
+						java.util.List.of(), java.util.List.of(), java.util.List.of(),
+						java.util.List.of(getColor())));
+		return stack;
 	}
 
 	private void giveOrDrop(PlayerEntity player, ItemStack stack) {

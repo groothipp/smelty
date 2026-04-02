@@ -39,10 +39,18 @@ Source is under `src/main/java/cloud/hipp/smelty/`. Design documents are in `not
 - `SmelterControllerBlock.java` — Controller block with `onUse` (opens GUI) and `onStateReplaced` (clears interior on break)
 - `MoltenAlloyBlock.java` — Fluid block extending `FluidBlock`, prevents bucket pickup
 - `SolidAlloyBlock.java` — Block with managed/unmanaged states, unbreakable when managed, drops composition NBT when unmanaged
+- `ChannelBlock.java` — Horizontal fluid transport channel
+- `ValveBlock.java` — Directional control valve for fluid flow
+- `CastingBasinBlock.java` — Large casting vessel (9-ingot capacity), solidifies alloys into block items
+- `CastingTableBlock.java` — Small casting surface (2-ingot capacity), casts alloys into mold-shaped items
 
 ### Block Entities
 - `SmelterControllerBlockEntity.java` — Central smelter logic: multiblock validation, alloy processing, queue/stack fluid management, outflow system, heat scanning, color registries, GUI data
 - `SolidAlloyBlockEntity.java` — Stores `AlloyComposition`, volume, and managed flag
+- `ChannelBlockEntity.java` — Fluid flow through horizontal channels (4-ingot capacity, 9 ingots/sec flow)
+- `ValveBlockEntity.java` — Directional fluid flow control (4-ingot capacity, 9 ingots/sec flow)
+- `CastingBasinBlockEntity.java` — Basin solidification logic, implements `Inventory` for hopper support, outputs vanilla items for pure materials or solid alloy blocks for mixed alloys
+- `CastingTableBlockEntity.java` — Casting table logic: pattern/mold placement, fluid acceptance, cooldown timer, solidification, item extraction. Produces ingots, nuggets, rods, or plates depending on mold and composition
 - `SmeltyBlockEntities.java` — Block entity type registration
 
 ### Material System
@@ -64,9 +72,16 @@ Source is under `src/main/java/cloud/hipp/smelty/`. Design documents are in `not
 ### Structure
 - `MultiblockValidator.java` — Validates rectangular prism structure (3-10 W/D, 3-9 H), returns dimensions, heat, and bounds
 
+### Client Rendering
+- `SmelterControllerBlockEntityRenderer.java` — Renders fluid inside the smelter multiblock
+- `ChannelBlockEntityRenderer.java` — Renders fluid flowing through channels
+- `ValveBlockEntityRenderer.java` — Renders fluid in valves
+- `CastingBasinBlockEntityRenderer.java` — Renders fluid/solidified output in the basin
+- `CastingTableBlockEntityRenderer.java` — Renders fluid, mold overlays, and solidified output on the table surface. Uses block textures as solid fills (mold provides shape), alloy items tinted with composition color via `solidItemColor`
+
 ### Registration
-- `SmeltyBlocks.java` — Block registration (smelter_block, smelter_controller, molten_alloy, solid_alloy)
-- `SmeltyItems.java` — Block item registration
+- `SmeltyBlocks.java` — Block registration (smelter_block, smelter_controller, valve, channel, casting_basin, casting_table, molten_alloy, solid_alloy)
+- `SmeltyItems.java` — Item registration: block items, plates (per material + alloy), molds (ingot/nugget/rod), cast items (diamond_ingot, diamond_nugget, netherite_nugget), rods (per material + alloy), alloy variants (alloy_ingot, alloy_nugget, alloy_rod). Also provides casting lookup maps: `getCastIngot()`, `getCastNugget()`, `getRodForMaterial()`
 - `SmeltyBlockEntities.java` — Block entity registration
 - `SmeltyFluids.java` — Fluid registration
 - `SmeltyScreenHandlers.java` — Screen handler registration
@@ -76,6 +91,9 @@ Source is under `src/main/java/cloud/hipp/smelty/`. Design documents are in `not
 - `COLOR_REGISTRY` (static `ConcurrentHashMap`) maps controller positions to color + bounding box for fluid rendering inside smelters.
 - `OUTFLOW_COLORS` (static `ConcurrentHashMap`) maps outflow source positions to color for fluid flowing out of broken smelters.
 - `lookupFluidColor()` uses nearest-wins across both registries.
+- Casting table uses pattern items to determine output: raw vanilla items (ingot/nugget/stick) as patterns create molds when cast with pure iron; mold items (ingot_mold/nugget_mold/rod_mold) shape fluid into the corresponding item type.
+- Alloy items (alloy_plate, alloy_ingot, alloy_nugget, alloy_rod) use `CustomModelDataComponent` with a colors list to store the alloy's blended color. Item definitions in `assets/smelty/items/` use `minecraft:custom_model_data` tint source (index 0) to apply the color. White/grayscale base textures are tinted at render time.
+- MC 1.21+ item model system: each item needs both `assets/smelty/items/<id>.json` (item definition pointing to model, with optional tints) and `assets/smelty/models/item/<id>.json` (the actual model with textures).
 
 ## Key Design Decisions
 
