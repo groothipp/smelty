@@ -1,0 +1,66 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "iron": "minecraft:block/iron_block",
+    "particle": "minecraft:block/iron_block"
+  },
+  "elements": [
+    {
+      "comment": "Base plate",
+      "from": [0, 0, 0],
+      "to": [16, 2, 16],
+      "faces": {
+        "down":  { "texture": "#iron" },
+        "up":    { "texture": "#iron" },
+        "north": { "texture": "#iron" },
+        "south": { "texture": "#iron" },
+        "east":  { "texture": "#iron" },
+        "west":  { "texture": "#iron" }
+      }
+    },
+    {
+      "comment": "North rim",
+      "from": [0, 2, 0],
+      "to": [16, 5, 2],
+      "faces": {
+        "north": { "texture": "#iron" },
+        "south": { "texture": "#iron" },
+        "east":  { "texture": "#iron" },
+        "west":  { "texture": "#iron" },
+        "up":    { "texture": "#iron" }
+      }
+    },
+    {
+      "comment": "South rim",
+      "from": [0, 2, 14],
+      "to": [16, 5, 16],
+      "faces": {
+        "north": { "texture": "#iron" },
+        "south": { "texture": "#iron" },
+        "east":  { "texture": "#iron" },
+        "west":  { "texture": "#iron" },
+        "up":    { "texture": "#iron" }
+      }
+    },
+    {
+      "comment": "West rim",
+      "from": [0, 2, 2],
+      "to": [6, 5, 14],
+      "faces": {
+        "east":  { "texture": "#iron" },
+        "west":  { "texture": "#iron" },
+        "up":    { "texture": "#iron" }
+      }
+    },
+    {
+      "comment": "East rim",
+      "from": [10, 2, 2],
+      "to": [16, 5, 14],
+      "faces": {
+        "east":  { "texture": "#iron" },
+        "west":  { "texture": "#iron" },
+        "up":    { "texture": "#iron" }
+      }
+    }
+  ]
+}

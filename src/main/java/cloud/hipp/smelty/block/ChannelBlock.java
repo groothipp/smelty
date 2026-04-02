@@ -71,9 +71,7 @@ public class ChannelBlock extends BlockWithEntity {
 	private boolean canConnect(BlockState state) {
 		Block block = state.getBlock();
 		return block instanceof ChannelBlock
-				|| block instanceof ValveBlock
-				|| block instanceof CastingBasinBlock
-				|| block instanceof CastingTableBlock;
+				|| block instanceof ValveBlock;
 	}
 
 	@Override

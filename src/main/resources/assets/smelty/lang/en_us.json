@@ -6,6 +6,15 @@
   "block.smelty.casting_basin": "Casting Basin",
   "block.smelty.casting_table": "Casting Table",
   "block.smelty.solid_alloy": "Alloy Block",
+  "item.smelty.copper_plate": "Copper Plate",
+  "item.smelty.iron_plate": "Iron Plate",
+  "item.smelty.gold_plate": "Gold Plate",
+  "item.smelty.diamond_plate": "Diamond Plate",
+  "item.smelty.netherite_plate": "Netherite Plate",
+  "item.smelty.alloy_plate": "Alloy Plate",
+  "item.smelty.ingot_mold": "Ingot Mold",
+  "item.smelty.nugget_mold": "Nugget Mold",
+  "item.smelty.rod_mold": "Rod Mold",
   "death.attack.molten_alloy": "%1$s tried to swim in molten alloy",
   "death.attack.molten_alloy.player": "%1$s tried to swim in molten alloy to escape %2$s"
 }

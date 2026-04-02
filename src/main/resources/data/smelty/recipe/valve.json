@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SIS"
+  ],
+  "key": {
+    "S": "smelty:smelter_block",
+    "I": "minecraft:iron_ingot"
+  },
+  "result": {
+    "id": "smelty:valve",
+    "count": 1
+  }
+}

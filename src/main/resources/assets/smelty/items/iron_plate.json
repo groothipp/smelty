@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "smelty:block/channel_item"
+    "model": "smelty:item/iron_plate"
   }
 }

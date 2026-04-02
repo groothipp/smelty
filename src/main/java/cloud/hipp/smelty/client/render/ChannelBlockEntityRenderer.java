@@ -54,15 +54,32 @@ public class ChannelBlockEntityRenderer
 		state.connEast = blockState.get(ChannelBlock.EAST);
 		state.connWest = blockState.get(ChannelBlock.WEST);
 
+		// Query neighbor fill ratios for fluid surface interpolation
+		state.neighborFillNorth = -1f;
+		state.neighborFillSouth = -1f;
+		state.neighborFillEast = -1f;
+		state.neighborFillWest = -1f;
+
+		World world = entity.getWorld();
+		BlockPos pos = entity.getPos();
+		if (world != null) {
+			if (state.connNorth && world.getBlockEntity(pos.north()) instanceof ChannelBlockEntity ch)
+				state.neighborFillNorth = ch.getFillRatio();
+			if (state.connSouth && world.getBlockEntity(pos.south()) instanceof ChannelBlockEntity ch)
+				state.neighborFillSouth = ch.getFillRatio();
+			if (state.connEast && world.getBlockEntity(pos.east()) instanceof ChannelBlockEntity ch)
+				state.neighborFillEast = ch.getFillRatio();
+			if (state.connWest && world.getBlockEntity(pos.west()) instanceof ChannelBlockEntity ch)
+				state.neighborFillWest = ch.getFillRatio();
+		}
+
 		// Compute waterfall depth by checking blocks below
 		// Render waterfall when channel has fluid OR is actively flowing downward
 		state.waterfallDepth = 0;
 		state.activeDownwardFlow = entity.isActiveDownwardFlow();
 		state.flowColor = entity.getFlowColor();
 		if (entity.getFluidLevelMl() > 0 || entity.isActiveDownwardFlow()) {
-			World world = entity.getWorld();
 			if (world != null) {
-				BlockPos pos = entity.getPos();
 				for (int dy = 1; dy <= 3; dy++) {
 					BlockPos below = pos.down(dy);
 					Block block = world.getBlockState(below).getBlock();
@@ -94,7 +111,14 @@ public class ChannelBlockEntityRenderer
 		float z1 = state.connNorth ? -OVERLAP : WALL - OVERLAP;
 		float z2 = state.connSouth ? 1f + OVERLAP : 1f - WALL + OVERLAP;
 		float y1 = 4f / 16f;
-		float y2 = y1 + state.fillRatio * (4f / 16f);
+		float fluidHeight = 4f / 16f;
+		float selfY2 = y1 + state.fillRatio * fluidHeight;
+
+		// Per-corner Y heights: average self level with connected neighbor levels
+		float yNW = cornerY(selfY2, state.neighborFillNorth, state.neighborFillWest, y1, fluidHeight);
+		float yNE = cornerY(selfY2, state.neighborFillNorth, state.neighborFillEast, y1, fluidHeight);
+		float ySE = cornerY(selfY2, state.neighborFillSouth, state.neighborFillEast, y1, fluidHeight);
+		float ySW = cornerY(selfY2, state.neighborFillSouth, state.neighborFillWest, y1, fluidHeight);
 
 		int color = state.color | 0xFF000000;
 		// For waterfall when channel is empty but actively flowing
@@ -108,11 +132,11 @@ public class ChannelBlockEntityRenderer
 
 			// Only render trough fluid if there's actual fluid
 			if (state.fluidLevel > 0) {
-				// Top face
-				vc.vertex(matrix, x1, y2, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
-				vc.vertex(matrix, x1, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
-				vc.vertex(matrix, x2, y2, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
-				vc.vertex(matrix, x2, y2, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+				// Top face (per-corner Y for smooth interpolation between channels)
+				vc.vertex(matrix, x1, yNW, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+				vc.vertex(matrix, x1, ySW, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+				vc.vertex(matrix, x2, ySE, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+				vc.vertex(matrix, x2, yNE, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
 
 				// Bottom face
 				vc.vertex(matrix, x2, y1, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, -1, 0);
@@ -124,29 +148,29 @@ public class ChannelBlockEntityRenderer
 				if (!state.connNorth) {
 					vc.vertex(matrix, x1, y1, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
 					vc.vertex(matrix, x2, y1, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
-					vc.vertex(matrix, x2, y2, z1).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
-					vc.vertex(matrix, x1, y2, z1).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+					vc.vertex(matrix, x2, yNE, z1).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+					vc.vertex(matrix, x1, yNW, z1).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
 				}
 
 				if (!state.connSouth) {
 					vc.vertex(matrix, x2, y1, z2).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
 					vc.vertex(matrix, x1, y1, z2).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
-					vc.vertex(matrix, x1, y2, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
-					vc.vertex(matrix, x2, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+					vc.vertex(matrix, x1, ySW, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+					vc.vertex(matrix, x2, ySE, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
 				}
 
 				if (!state.connWest) {
 					vc.vertex(matrix, x1, y1, z2).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
 					vc.vertex(matrix, x1, y1, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
-					vc.vertex(matrix, x1, y2, z1).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
-					vc.vertex(matrix, x1, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+					vc.vertex(matrix, x1, yNW, z1).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+					vc.vertex(matrix, x1, ySW, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
 				}
 
 				if (!state.connEast) {
 					vc.vertex(matrix, x2, y1, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
 					vc.vertex(matrix, x2, y1, z2).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
-					vc.vertex(matrix, x2, y2, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
-					vc.vertex(matrix, x2, y2, z1).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+					vc.vertex(matrix, x2, ySE, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+					vc.vertex(matrix, x2, yNE, z1).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
 				}
 			}
 
@@ -242,11 +266,26 @@ public class ChannelBlockEntityRenderer
 		return true;
 	}
 
+	/**
+	 * Computes a corner's Y height by averaging self level with up to 2 connected neighbor levels.
+	 * neighborFillA/B are -1 if no neighbor on that edge, otherwise the neighbor's fill ratio.
+	 */
+	private static float cornerY(float selfY, float neighborFillA, float neighborFillB,
+								  float baseY, float fluidHeight) {
+		float sum = selfY;
+		int count = 1;
+		if (neighborFillA >= 0) { sum += baseY + neighborFillA * fluidHeight; count++; }
+		if (neighborFillB >= 0) { sum += baseY + neighborFillB * fluidHeight; count++; }
+		return Math.max(sum / count, baseY);
+	}
+
 	public static class RenderState extends BlockEntityRenderState {
 		public int fluidLevel;
 		public float fillRatio;
 		public int color;
 		public boolean connNorth, connSouth, connEast, connWest;
+		public float neighborFillNorth = -1f, neighborFillSouth = -1f;
+		public float neighborFillEast = -1f, neighborFillWest = -1f;
 		public int waterfallDepth; // 0 = none, 1-3 = blocks to target
 		public boolean activeDownwardFlow;
 		public int flowColor;

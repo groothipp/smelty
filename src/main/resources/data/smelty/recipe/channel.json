@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "S S",
+    "SSS"
+  ],
+  "key": {
+    "S": "smelty:smelter_block"
+  },
+  "result": {
+    "id": "smelty:channel",
+    "count": 1
+  }
+}

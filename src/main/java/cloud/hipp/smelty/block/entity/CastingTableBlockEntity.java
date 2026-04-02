@@ -1,17 +1,17 @@
 package cloud.hipp.smelty.block.entity;
 
-import cloud.hipp.smelty.block.SmeltyBlocks;
+import cloud.hipp.smelty.item.SmeltyItems;
 import cloud.hipp.smelty.material.AlloyComposition;
 import cloud.hipp.smelty.material.MaterialItems;
+import cloud.hipp.smelty.material.SmeltyMaterial;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.TypedEntityData;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
@@ -23,10 +23,24 @@ import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.Map;
+import java.util.Set;
+
 public class CastingTableBlockEntity extends BlockEntity {
-	// 1 ingot capacity. Mold system will replace this with mold-specific values.
-	public static final int DEFAULT_CAPACITY = MaterialItems.UNITS_PER_INGOT; // 90
-	private static final int COOLDOWN_TICKS = 60; // 3 seconds (faster than basin)
+	// 2 ingots capacity for plates and molds
+	public static final int DEFAULT_CAPACITY = MaterialItems.UNITS_PER_INGOT * 2; // 360
+	private static final int COOLDOWN_TICKS = 60; // 3 seconds
+
+	/** Items that can be placed as a pattern for ingot molds. */
+	private static final Set<Item> INGOT_PATTERN_ITEMS = Set.of(
+			Items.COPPER_INGOT, Items.IRON_INGOT, Items.GOLD_INGOT,
+			Items.DIAMOND, Items.NETHERITE_INGOT
+	);
+
+	/** Items that can be placed as a pattern for nugget molds. */
+	private static final Set<Item> NUGGET_PATTERN_ITEMS = Set.of(
+			Items.IRON_NUGGET, Items.GOLD_NUGGET
+	);
 
 	private final AlloyComposition fluidComposition = new AlloyComposition();
 	private int fluidLevelMl;
@@ -34,7 +48,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 	private int cooldownTicks = -1;
 	private boolean solidified;
 	private boolean needsSync;
-	private ItemStack moldItem = ItemStack.EMPTY; // Future: mold determines output
+	private ItemStack patternItem = ItemStack.EMPTY;
 
 	public CastingTableBlockEntity(BlockPos pos, BlockState state) {
 		super(SmeltyBlockEntities.CASTING_TABLE, pos, state);
@@ -68,12 +82,21 @@ public class CastingTableBlockEntity extends BlockEntity {
 		return fluidLevelMl <= 0;
 	}
 
-	public ItemStack getMoldItem() {
-		return moldItem;
+	public ItemStack getPatternItem() {
+		return patternItem;
 	}
 
-	public boolean hasMold() {
-		return !moldItem.isEmpty();
+	public boolean hasPattern() {
+		return !patternItem.isEmpty();
+	}
+
+	/**
+	 * Returns the sole material if the composition is pure, or null for alloys.
+	 */
+	public SmeltyMaterial getSoleMaterial() {
+		Map<SmeltyMaterial, Integer> mats = fluidComposition.getMaterials();
+		if (mats.size() == 1) return mats.keySet().iterator().next();
+		return null;
 	}
 
 	/**
@@ -129,45 +152,157 @@ public class CastingTableBlockEntity extends BlockEntity {
 	/**
 	 * Player right-click interaction.
 	 * - If solidified: extract the result.
-	 * - Otherwise: future mold placement (currently no-op).
+	 * - If empty (no fluid): place or remove pattern item.
 	 */
 	public boolean onInteract(PlayerEntity player) {
 		if (solidified) {
 			return tryExtract(player);
 		}
+		if (isEmpty()) {
+			return tryPatternInteraction(player);
+		}
 		return false;
+	}
+
+	/**
+	 * Handle placing or removing a pattern item on the empty table.
+	 */
+	private boolean tryPatternInteraction(PlayerEntity player) {
+		ItemStack held = player.getMainHandStack();
+
+		if (hasPattern() && held.isEmpty()) {
+			// Remove pattern
+			giveOrDrop(player, patternItem.copy());
+			patternItem = ItemStack.EMPTY;
+			capacity = DEFAULT_CAPACITY;
+			needsSync = true;
+			markDirty();
+			if (world instanceof ServerWorld sw) {
+				sw.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
+			}
+			return true;
+		}
+
+		if (!hasPattern() && !held.isEmpty() && isValidPattern(held)) {
+			// Place pattern
+			patternItem = held.copyWithCount(1);
+			held.decrement(1);
+			capacity = capacityForPattern(patternItem);
+			needsSync = true;
+			markDirty();
+			if (world instanceof ServerWorld sw) {
+				sw.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check if an item can be placed as a casting pattern.
+	 */
+	private boolean isValidPattern(ItemStack stack) {
+		Item item = stack.getItem();
+		return INGOT_PATTERN_ITEMS.contains(item)
+				|| NUGGET_PATTERN_ITEMS.contains(item)
+				|| item == Items.STICK
+				|| isMold(item);
+	}
+
+	private static boolean isMold(Item item) {
+		return item == SmeltyItems.INGOT_MOLD
+				|| item == SmeltyItems.NUGGET_MOLD
+				|| item == SmeltyItems.ROD_MOLD;
+	}
+
+	/**
+	 * Returns the capacity for the given pattern, or DEFAULT_CAPACITY if no mold.
+	 */
+	private static int capacityForPattern(ItemStack pattern) {
+		if (pattern.isEmpty()) return DEFAULT_CAPACITY;
+		Item item = pattern.getItem();
+		if (item == SmeltyItems.INGOT_MOLD) return MaterialItems.INGOT_VOLUME;   // 180
+		if (item == SmeltyItems.NUGGET_MOLD) return MaterialItems.NUGGET_VOLUME; // 20
+		if (item == SmeltyItems.ROD_MOLD) return MaterialItems.INGOT_VOLUME / 2; // 90
+		return DEFAULT_CAPACITY; // raw patterns use plate capacity
+	}
+
+	private boolean isPureIron() {
+		Map<SmeltyMaterial, Integer> materials = fluidComposition.getMaterials();
+		return materials.size() == 1 && materials.containsKey(SmeltyMaterial.IRON);
 	}
 
 	private boolean tryExtract(PlayerEntity player) {
 		if (!solidified) return false;
 
-		// Pure single-material alloy → return vanilla items
-		java.util.List<ItemStack> vanillaItems = MaterialItems.getPureVanillaItems(fluidComposition);
-		if (vanillaItems != null) {
-			for (ItemStack vanillaStack : vanillaItems) {
-				giveOrDrop(player, vanillaStack);
-			}
-		} else {
-			// Mixed alloy → solid alloy block
-			ItemStack stack = new ItemStack(SmeltyBlocks.SOLID_ALLOY);
-			SolidAlloyBlockEntity tempBe = new SolidAlloyBlockEntity(BlockPos.ORIGIN, SmeltyBlocks.SOLID_ALLOY.getDefaultState());
-			tempBe.setComposition(fluidComposition);
-			tempBe.setVolumeMl(fluidLevelMl);
+		Item patItem = patternItem.getItem();
 
-			if (world instanceof ServerWorld serverWorld) {
-				stack.set(DataComponentTypes.BLOCK_ENTITY_DATA,
-						TypedEntityData.create(SmeltyBlockEntities.SOLID_ALLOY,
-								tempBe.createNbt(serverWorld.getRegistryManager())));
-				stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
-						new CustomModelDataComponent(
-								java.util.List.of(), java.util.List.of(), java.util.List.of(),
-								java.util.List.of(tempBe.getColor())));
+		if (hasPattern() && isMold(patItem)) {
+			// Using a mold: produce the cast item, keep the mold
+			giveOrDrop(player, createMoldOutput(patItem));
+			resetKeepPattern();
+		} else if (hasPattern()) {
+			// Mold creation: raw pattern + pure iron → mold item + return pattern
+			if (isPureIron()) {
+				Item moldItem = getMoldForRawPattern(patternItem);
+				if (moldItem != null) {
+					giveOrDrop(player, new ItemStack(moldItem));
+				}
+				giveOrDrop(player, patternItem.copy());
+			} else {
+				// Wrong alloy — return the pattern and produce a plate
+				giveOrDrop(player, patternItem.copy());
+				giveOrDrop(player, createPlateOutput());
 			}
-			giveOrDrop(player, stack);
+			reset();
+		} else {
+			// No pattern → produce a plate
+			giveOrDrop(player, createPlateOutput());
+			reset();
 		}
 
-		reset();
 		return true;
+	}
+
+	/**
+	 * Produce an item from a mold cast.
+	 */
+	private ItemStack createMoldOutput(Item mold) {
+		Map<SmeltyMaterial, Integer> materials = fluidComposition.getMaterials();
+		if (materials.size() == 1) {
+			SmeltyMaterial material = materials.keySet().iterator().next();
+			if (mold == SmeltyItems.INGOT_MOLD) {
+				Item ingot = MaterialItems.getIngotItem(material);
+				if (ingot != null) return new ItemStack(ingot);
+			} else if (mold == SmeltyItems.NUGGET_MOLD) {
+				Item nugget = MaterialItems.getNuggetItem(material);
+				if (nugget != null) return new ItemStack(nugget);
+			}
+		}
+		// Mixed alloy or no vanilla equivalent — produce a plate as fallback
+		return createPlateOutput();
+	}
+
+	private Item getMoldForRawPattern(ItemStack pattern) {
+		Item item = pattern.getItem();
+		if (INGOT_PATTERN_ITEMS.contains(item)) return SmeltyItems.INGOT_MOLD;
+		if (NUGGET_PATTERN_ITEMS.contains(item)) return SmeltyItems.NUGGET_MOLD;
+		if (item == Items.STICK) return SmeltyItems.ROD_MOLD;
+		return null;
+	}
+
+	private ItemStack createPlateOutput() {
+		Map<SmeltyMaterial, Integer> materials = fluidComposition.getMaterials();
+		if (materials.size() == 1) {
+			SmeltyMaterial material = materials.keySet().iterator().next();
+			Item plate = SmeltyItems.getPlateForMaterial(material);
+			if (plate != null) {
+				return new ItemStack(plate);
+			}
+		}
+		// Mixed alloy → alloy plate
+		return new ItemStack(SmeltyItems.ALLOY_PLATE);
 	}
 
 	private void giveOrDrop(PlayerEntity player, ItemStack stack) {
@@ -183,6 +318,21 @@ public class CastingTableBlockEntity extends BlockEntity {
 		fluidLevelMl = 0;
 		cooldownTicks = -1;
 		solidified = false;
+		patternItem = ItemStack.EMPTY;
+		capacity = DEFAULT_CAPACITY;
+		markDirty();
+		if (world instanceof ServerWorld serverWorld) {
+			serverWorld.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
+		}
+	}
+
+	/** Reset fluid state but keep the mold on the table for reuse. */
+	private void resetKeepPattern() {
+		fluidComposition.clear();
+		fluidLevelMl = 0;
+		cooldownTicks = -1;
+		solidified = false;
+		// patternItem and capacity stay
 		markDirty();
 		if (world instanceof ServerWorld serverWorld) {
 			serverWorld.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
@@ -193,33 +343,37 @@ public class CastingTableBlockEntity extends BlockEntity {
 	 * Drop contents when the block is broken.
 	 */
 	public void dropContents(ServerWorld world) {
-		if (solidified && !fluidComposition.isEmpty()) {
-			java.util.List<ItemStack> vanillaItems = MaterialItems.getPureVanillaItems(fluidComposition);
-			if (vanillaItems != null) {
-				for (ItemStack vanillaStack : vanillaItems) {
-					ItemEntity itemEntity = new ItemEntity(world,
-							pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, vanillaStack);
-					world.spawnEntity(itemEntity);
+		if (hasPattern()) {
+			Item patItem = patternItem.getItem();
+			if (solidified && !fluidComposition.isEmpty() && isMold(patItem)) {
+				// Mold + solidified → drop the mold and the cast output
+				dropAt(world, patternItem.copy());
+				dropAt(world, createMoldOutput(patItem));
+			} else if (solidified && !fluidComposition.isEmpty()) {
+				// Raw pattern + solidified
+				if (isPureIron()) {
+					Item moldItem = getMoldForRawPattern(patternItem);
+					if (moldItem != null) {
+						dropAt(world, new ItemStack(moldItem));
+					}
+					dropAt(world, patternItem.copy());
+				} else {
+					dropAt(world, patternItem.copy());
+					dropAt(world, createPlateOutput());
 				}
 			} else {
-				ItemStack stack = new ItemStack(SmeltyBlocks.SOLID_ALLOY);
-				SolidAlloyBlockEntity tempBe = new SolidAlloyBlockEntity(BlockPos.ORIGIN, SmeltyBlocks.SOLID_ALLOY.getDefaultState());
-				tempBe.setComposition(fluidComposition);
-				tempBe.setVolumeMl(fluidLevelMl);
-
-				stack.set(DataComponentTypes.BLOCK_ENTITY_DATA,
-						TypedEntityData.create(SmeltyBlockEntities.SOLID_ALLOY,
-								tempBe.createNbt(world.getRegistryManager())));
-				stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
-						new CustomModelDataComponent(
-								java.util.List.of(), java.util.List.of(), java.util.List.of(),
-								java.util.List.of(tempBe.getColor())));
-
-				ItemEntity itemEntity = new ItemEntity(world,
-						pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
-				world.spawnEntity(itemEntity);
+				// Not solidified — just drop the pattern
+				dropAt(world, patternItem.copy());
 			}
+		} else if (solidified && !fluidComposition.isEmpty()) {
+			dropAt(world, createPlateOutput());
 		}
+	}
+
+	private void dropAt(ServerWorld world, ItemStack stack) {
+		ItemEntity itemEntity = new ItemEntity(world,
+				pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
+		world.spawnEntity(itemEntity);
 	}
 
 	// --- Network sync ---
@@ -243,6 +397,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 		capacity = view.getInt("Capacity", DEFAULT_CAPACITY);
 		cooldownTicks = view.getInt("CooldownTicks", -1);
 		solidified = view.getBoolean("Solidified", false);
+		patternItem = view.read("PatternItem", ItemStack.OPTIONAL_CODEC).orElse(ItemStack.EMPTY);
 	}
 
 	@Override
@@ -252,5 +407,6 @@ public class CastingTableBlockEntity extends BlockEntity {
 		view.putInt("Capacity", capacity);
 		view.putInt("CooldownTicks", cooldownTicks);
 		view.putBoolean("Solidified", solidified);
+		view.put("PatternItem", ItemStack.OPTIONAL_CODEC, patternItem);
 	}
 }

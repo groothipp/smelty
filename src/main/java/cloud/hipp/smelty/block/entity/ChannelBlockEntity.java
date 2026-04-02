@@ -1,5 +1,7 @@
 package cloud.hipp.smelty.block.entity;
 
+import cloud.hipp.smelty.block.CastingBasinBlock;
+import cloud.hipp.smelty.block.CastingTableBlock;
 import cloud.hipp.smelty.block.ChannelBlock;
 import cloud.hipp.smelty.material.AlloyComposition;
 import cloud.hipp.smelty.material.MaterialItems;
@@ -109,6 +111,7 @@ public class ChannelBlockEntity extends BlockEntity {
 	}
 
 	public void serverTick(ServerWorld world) {
+		updateDownState(world);
 		if (lastProcessedTick != world.getTime()) {
 			processNetwork(world);
 		}
@@ -116,6 +119,31 @@ public class ChannelBlockEntity extends BlockEntity {
 			world.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
 			needsSync = false;
 		}
+	}
+
+	/**
+	 * Re-evaluate the DOWN blockstate property. neighborUpdate only fires for
+	 * directly adjacent blocks, so targets placed 2-3 blocks below are missed.
+	 */
+	private void updateDownState(ServerWorld world) {
+		BlockState currentState = getCachedState();
+		boolean currentDown = currentState.get(ChannelBlock.DOWN);
+		boolean shouldDown = checkDownwardTarget(world);
+		if (currentDown != shouldDown) {
+			world.setBlockState(pos, currentState.with(ChannelBlock.DOWN, shouldDown), Block.NOTIFY_ALL);
+		}
+	}
+
+	private boolean checkDownwardTarget(ServerWorld world) {
+		for (int dy = 1; dy <= 3; dy++) {
+			BlockPos below = pos.down(dy);
+			Block block = world.getBlockState(below).getBlock();
+			if (block instanceof ChannelBlock || block instanceof CastingBasinBlock || block instanceof CastingTableBlock) {
+				return true;
+			}
+			if (!world.getBlockState(below).isAir()) return false;
+		}
+		return false;
 	}
 
 	/**
@@ -192,25 +220,17 @@ public class ChannelBlockEntity extends BlockEntity {
 						totalFluid -= pushed;
 						if (pushed > 0) downwardFlowChannels.add(ch.getPos());
 						break;
-					} else if (belowBe != null) {
+					} else if (belowBe instanceof CastingTableBlockEntity table && !table.isFull() && !table.isSolidified()) {
+						int pushed = pushFromPoolToCasting(pool, table, totalFluid);
+						totalFluid -= pushed;
+						if (pushed > 0) downwardFlowChannels.add(ch.getPos());
+						break;
+					} else if (!world.getBlockState(below).isAir()) {
 						break;
 					}
 				}
 
-				// Horizontal endpoints
-				BlockState state = ch.getCachedState();
-				for (Direction dir : HORIZONTAL_DIRS) {
-					if (totalFluid <= 0) break;
-					if (!ch.isConnected(state, dir)) continue;
-					BlockPos neighborPos = ch.getPos().offset(dir);
-					if (visited.contains(neighborPos)) continue; // same network
-					BlockEntity neighborBe = world.getBlockEntity(neighborPos);
-					if (neighborBe instanceof CastingBasinBlockEntity basin && !basin.isFull() && !basin.isSolidified()) {
-						totalFluid -= pushFromPoolToCasting(pool, basin, totalFluid);
-					} else if (neighborBe instanceof CastingTableBlockEntity table && !table.isFull() && !table.isSolidified()) {
-						totalFluid -= pushFromPoolToCasting(pool, table, totalFluid);
-					}
-				}
+				// Horizontal endpoints: only push to valves/channels (basins/tables receive fluid only from above)
 			}
 
 			// Distribute remaining fluid evenly across channels
