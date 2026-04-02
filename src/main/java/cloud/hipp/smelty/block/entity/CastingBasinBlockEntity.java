@@ -2,6 +2,7 @@ package cloud.hipp.smelty.block.entity;
 
 import cloud.hipp.smelty.block.SmeltyBlocks;
 import cloud.hipp.smelty.material.AlloyComposition;
+import cloud.hipp.smelty.material.AlloyRegistry;
 import cloud.hipp.smelty.material.MaterialItems;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -10,6 +11,7 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.TypedEntityData;
+import net.minecraft.text.Text;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
@@ -167,6 +169,12 @@ public class CastingBasinBlockEntity extends BlockEntity implements Inventory {
 					new CustomModelDataComponent(
 							java.util.List.of(), java.util.List.of(), java.util.List.of(),
 							java.util.List.of(tempBe.getColor())));
+			AlloyRegistry registry = AlloyRegistry.get(serverWorld);
+			String alloyName = registry.getAlloyName(fluidComposition);
+			if (alloyName != null) {
+				stack.set(DataComponentTypes.CUSTOM_NAME,
+						Text.literal(alloyName + " Block").styled(s -> s.withItalic(false)));
+			}
 			cachedOutput = stack;
 		}
 	}

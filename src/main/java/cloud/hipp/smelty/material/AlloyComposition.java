@@ -242,6 +242,51 @@ public class AlloyComposition {
 		return (int) blended;
 	}
 
+	/**
+	 * Returns a canonical string key for this composition, normalized to sum to 100.
+	 * Format: "COPPER:30,IRON:70" (sorted by enum order, zeros omitted).
+	 */
+	public String getNormalizedKey() {
+		AlloyComposition normalized = toNormalized(100);
+		StringBuilder sb = new StringBuilder();
+		for (SmeltyMaterial mat : SmeltyMaterial.values()) {
+			int amount = normalized.getMaterials().getOrDefault(mat, 0);
+			if (amount > 0) {
+				if (!sb.isEmpty()) sb.append(',');
+				sb.append(mat.name()).append(':').append(amount);
+			}
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * Convert to a list of float percentages (one per SmeltyMaterial in enum order).
+	 */
+	public java.util.List<Float> toPercentages() {
+		int total = getTotalVolumeMl();
+		java.util.List<Float> result = new java.util.ArrayList<>();
+		for (SmeltyMaterial mat : SmeltyMaterial.values()) {
+			int vol = materials.getOrDefault(mat, 0);
+			result.add(total > 0 ? (float) vol * 100f / total : 0f);
+		}
+		return result;
+	}
+
+	/**
+	 * Create a composition from float percentages (one per SmeltyMaterial in enum order).
+	 */
+	public static AlloyComposition fromPercentages(java.util.List<Float> percentages) {
+		AlloyComposition comp = new AlloyComposition();
+		SmeltyMaterial[] mats = SmeltyMaterial.values();
+		for (int i = 0; i < mats.length && i < percentages.size(); i++) {
+			int amount = Math.round(percentages.get(i));
+			if (amount > 0) {
+				comp.addMaterial(mats[i], amount);
+			}
+		}
+		return comp;
+	}
+
 	public void mergeFrom(AlloyComposition other) {
 		for (var entry : other.materials.entrySet()) {
 			addMaterial(entry.getKey(), entry.getValue());

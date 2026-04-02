@@ -2,6 +2,7 @@ package cloud.hipp.smelty.block;
 
 import cloud.hipp.smelty.block.entity.SolidAlloyBlockEntity;
 import cloud.hipp.smelty.block.entity.SmeltyBlockEntities;
+import cloud.hipp.smelty.material.AlloyRegistry;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -14,6 +15,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.TypedEntityData;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
@@ -65,6 +67,12 @@ public class SolidAlloyBlock extends BlockWithEntity {
 					new CustomModelDataComponent(
 							java.util.List.of(), java.util.List.of(), java.util.List.of(),
 							java.util.List.of(tempBe.getColor())));
+			AlloyRegistry registry = AlloyRegistry.get(world);
+			String alloyName = registry.getAlloyName(solidBe.getComposition());
+			if (alloyName != null) {
+				stack.set(DataComponentTypes.CUSTOM_NAME,
+						Text.literal(alloyName + " Block").styled(s -> s.withItalic(false)));
+			}
 			ItemEntity itemEntity = new ItemEntity(world,
 					pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
 			world.spawnEntity(itemEntity);

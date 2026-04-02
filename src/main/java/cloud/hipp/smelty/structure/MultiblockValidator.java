@@ -27,7 +27,7 @@ public class MultiblockValidator {
 	public static Result validate(World world, BlockPos controllerPos) {
 		for (int w = MIN_SIZE; w <= MAX_SIZE; w++) {
 			for (int d = MIN_SIZE; d <= MAX_SIZE; d++) {
-				for (int h = MIN_SIZE; h <= MAX_HEIGHT; h++) {
+				for (int h = MAX_HEIGHT; h >= MIN_SIZE; h--) {
 					Result result = tryAllPositions(world, controllerPos, w, d, h);
 					if (result.valid()) {
 						return result;
@@ -43,8 +43,8 @@ public class MultiblockValidator {
 		int cy = controllerPos.getY();
 		int cz = controllerPos.getZ();
 
-		// Controller must be at y offset 2..h-1 from the bottom (layer 2+, 0-indexed)
-		for (int yOff = 2; yOff < h; yOff++) {
+		// Controller must be at y offset 1..h-1 from the bottom (layer 1+, 0-indexed)
+		for (int yOff = 1; yOff < h; yOff++) {
 			int minY = cy - yOff;
 
 			// Try all origins where controller is on the perimeter
@@ -110,12 +110,19 @@ public class MultiblockValidator {
 							totalHeat += getHeatValue(state);
 						}
 					} else if (y == 1) {
-						// Layer 1: solid cover — all smelter blocks
-						if (!isSmelterBlock(state)) return Result.INVALID;
+						// Layer 1: perimeter is smelter/controller, interior is solid smelter
+						if (perimeter) {
+							if (pos.equals(controllerPos)) {
+								foundController = true;
+							} else if (!isSmelterBlock(state)) {
+								return Result.INVALID;
+							}
+						} else {
+							if (!isSmelterBlock(state)) return Result.INVALID;
+						}
 					} else {
 						// Layer 2+: perimeter is smelter/controller, interior is air (open top)
 						if (perimeter) {
-							boolean isCorner = (x == 0 || x == w - 1) && (z == 0 || z == d - 1);
 							if (pos.equals(controllerPos)) {
 								foundController = true;
 							} else if (!isSmelterBlock(state)) {

@@ -15,6 +15,13 @@ public class SmeltyScreenHandlers {
 					new ExtendedScreenHandlerType<>(SmelterControllerScreenHandler::new, SmelterData.PACKET_CODEC)
 			);
 
+	public static final ScreenHandlerType<AnalysisBenchScreenHandler> ANALYSIS_BENCH =
+			Registry.register(
+					Registries.SCREEN_HANDLER,
+					Identifier.of(Smelty.MOD_ID, "analysis_bench"),
+					new ExtendedScreenHandlerType<>(AnalysisBenchScreenHandler::new, AnalysisBenchData.PACKET_CODEC)
+			);
+
 	public static void initialize() {
 	}
 }

@@ -44,6 +44,13 @@ public class SmeltyBlockEntities {
 					FabricBlockEntityTypeBuilder.create(ValveBlockEntity::new, SmeltyBlocks.VALVE).build()
 			);
 
+	public static final BlockEntityType<AnalysisBenchBlockEntity> ANALYSIS_BENCH =
+			Registry.register(
+					Registries.BLOCK_ENTITY_TYPE,
+					Identifier.of(Smelty.MOD_ID, "analysis_bench"),
+					FabricBlockEntityTypeBuilder.create(AnalysisBenchBlockEntity::new, SmeltyBlocks.ANALYSIS_BENCH).build()
+			);
+
 	public static final BlockEntityType<SolidAlloyBlockEntity> SOLID_ALLOY =
 			Registry.register(
 					Registries.BLOCK_ENTITY_TYPE,

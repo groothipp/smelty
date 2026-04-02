@@ -1,5 +1,7 @@
 package cloud.hipp.smelty.screen;
 
+import cloud.hipp.smelty.material.AlloyComposition;
+import cloud.hipp.smelty.material.ClientAlloyRegistry;
 import cloud.hipp.smelty.material.MaterialItems;
 import cloud.hipp.smelty.material.SmeltyMaterial;
 import net.minecraft.client.gl.RenderPipelines;
@@ -101,33 +103,53 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 		int y = startY;
 
 		if (hasMolten) {
-			context.drawTextWithShadow(textRenderer, Text.literal("Molten Alloy:"),
+			String moltenName = getCompositionName(data.moltenBreakdown());
+			context.drawTextWithShadow(textRenderer, Text.literal("Molten " + moltenName),
 					10, y, 0xFFFFAA00);
 			y += 12;
 
-			int totalMl = 0;
-			for (int ml : data.moltenBreakdown().values()) {
-				totalMl += ml;
-			}
-
-			for (Map.Entry<SmeltyMaterial, Integer> entry : data.moltenBreakdown().entrySet()) {
-				SmeltyMaterial material = entry.getKey();
-				int ml = entry.getValue();
-				int pct = totalMl > 0 ? (ml * 100 / totalMl) : 0;
-				String ingotStr = formatIngots(ml);
-
-				String line = material.getDisplayName() + " - " + ingotStr + " (" + pct + "%)";
-				context.drawTextWithShadow(textRenderer, Text.literal(line),
-						14, y, getMaterialColor(material));
-				y += 11;
-			}
+			y = drawBreakdownLines(context, y, data.moltenBreakdown());
 		}
 
 		if (hasSolid) {
 			if (hasMolten) y += 2;
-			context.drawTextWithShadow(textRenderer, Text.literal("Solid Alloy"),
+			String solidName = getCompositionName(data.solidBreakdown());
+			context.drawTextWithShadow(textRenderer, Text.literal("Solid " + solidName),
 					10, y, 0xFF888888);
+			y += 12;
+
+			y = drawBreakdownLines(context, y, data.solidBreakdown());
 		}
+	}
+
+	private int drawBreakdownLines(DrawContext context, int y, Map<SmeltyMaterial, Integer> breakdown) {
+		int totalMl = 0;
+		for (int ml : breakdown.values()) totalMl += ml;
+
+		for (Map.Entry<SmeltyMaterial, Integer> entry : breakdown.entrySet()) {
+			SmeltyMaterial material = entry.getKey();
+			int ml = entry.getValue();
+			int pct = totalMl > 0 ? (ml * 100 / totalMl) : 0;
+			String ingotStr = formatIngots(ml);
+
+			String line = material.getDisplayName() + " - " + ingotStr + " (" + pct + "%)";
+			context.drawTextWithShadow(textRenderer, Text.literal(line),
+					14, y, getMaterialColor(material));
+			y += 11;
+		}
+		return y;
+	}
+
+	private String getCompositionName(Map<SmeltyMaterial, Integer> breakdown) {
+		if (breakdown.size() == 1) {
+			return breakdown.keySet().iterator().next().getDisplayName();
+		}
+		AlloyComposition comp = new AlloyComposition();
+		for (Map.Entry<SmeltyMaterial, Integer> entry : breakdown.entrySet()) {
+			comp.addMaterial(entry.getKey(), entry.getValue());
+		}
+		String name = ClientAlloyRegistry.getAlloyName(comp);
+		return name != null ? name : "Alloy";
 	}
 
 	private String formatIngots(int volume) {

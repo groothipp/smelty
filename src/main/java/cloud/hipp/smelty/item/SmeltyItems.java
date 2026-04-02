@@ -23,6 +23,7 @@ public class SmeltyItems {
 	public static final Item CHANNEL = Items.register(SmeltyBlocks.CHANNEL);
 	public static final Item CASTING_BASIN = Items.register(SmeltyBlocks.CASTING_BASIN);
 	public static final Item CASTING_TABLE = Items.register(SmeltyBlocks.CASTING_TABLE);
+	public static final Item ANALYSIS_BENCH = Items.register(SmeltyBlocks.ANALYSIS_BENCH);
 	public static final Item SOLID_ALLOY = Items.register(SmeltyBlocks.SOLID_ALLOY);
 
 	// Plates (one per material + alloy for mixed compositions)
@@ -31,7 +32,7 @@ public class SmeltyItems {
 	public static final Item GOLD_PLATE = register("gold_plate");
 	public static final Item DIAMOND_PLATE = register("diamond_plate");
 	public static final Item NETHERITE_PLATE = register("netherite_plate");
-	public static final Item ALLOY_PLATE = register("alloy_plate");
+	public static final Item ALLOY_PLATE = registerAlloy("alloy_plate", "Plate");
 
 	// Molds
 	public static final Item INGOT_MOLD = register("ingot_mold");
@@ -53,9 +54,9 @@ public class SmeltyItems {
 	public static final Item NETHERITE_ROD = register("netherite_rod");
 
 	// Alloy cast outputs (mixed compositions)
-	public static final Item ALLOY_INGOT = register("alloy_ingot");
-	public static final Item ALLOY_NUGGET = register("alloy_nugget");
-	public static final Item ALLOY_ROD = register("alloy_rod");
+	public static final Item ALLOY_INGOT = registerAlloy("alloy_ingot", "Ingot");
+	public static final Item ALLOY_NUGGET = registerAlloy("alloy_nugget", "Nugget");
+	public static final Item ALLOY_ROD = registerAlloy("alloy_rod", "Rod");
 
 	private static final EnumMap<SmeltyMaterial, Item> PLATE_MAP = new EnumMap<>(SmeltyMaterial.class);
 	private static final EnumMap<SmeltyMaterial, Item> CAST_INGOT_MAP = new EnumMap<>(SmeltyMaterial.class);
@@ -108,6 +109,11 @@ public class SmeltyItems {
 		return Registry.register(Registries.ITEM, key, new Item(new Item.Settings().registryKey(key)));
 	}
 
+	private static Item registerAlloy(String id, String suffix) {
+		RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, id));
+		return Registry.register(Registries.ITEM, key, new AlloyItem(new Item.Settings().registryKey(key), suffix));
+	}
+
 	public static void initialize() {
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register(entries -> {
 			entries.add(SMELTER_BLOCK);
@@ -116,6 +122,7 @@ public class SmeltyItems {
 			entries.add(CHANNEL);
 			entries.add(CASTING_BASIN);
 			entries.add(CASTING_TABLE);
+			entries.add(ANALYSIS_BENCH);
 			entries.add(SOLID_ALLOY);
 		});
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.INGREDIENTS).register(entries -> {

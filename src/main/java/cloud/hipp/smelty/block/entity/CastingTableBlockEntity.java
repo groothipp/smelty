@@ -355,7 +355,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 		ItemStack stack = new ItemStack(item);
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
-						java.util.List.of(), java.util.List.of(), java.util.List.of(),
+						fluidComposition.toPercentages(), java.util.List.of(), java.util.List.of(),
 						java.util.List.of(getColor())));
 		return stack;
 	}

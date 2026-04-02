@@ -88,13 +88,13 @@ public class ValveBlockEntityRenderer
 		float v1 = v0 + V_FRAME;
 
 		// Stream position at the nozzle opening
-		// Nozzle model coords (facing=north): [5,4,3]-[11,9,6], stream at center-bottom
+		// Nozzle model coords (facing=north): [5,4,8]-[11,9,11], stream at center-bottom
 		float x1, x2, z1, z2;
 		switch (state.facing) {
-			case NORTH -> { x1 = 7f/16; x2 = 9f/16; z1 = 3f/16; z2 = 5f/16; }
-			case SOUTH -> { x1 = 7f/16; x2 = 9f/16; z1 = 11f/16; z2 = 13f/16; }
-			case EAST  -> { x1 = 11f/16; x2 = 13f/16; z1 = 7f/16; z2 = 9f/16; }
-			case WEST  -> { x1 = 3f/16; x2 = 5f/16; z1 = 7f/16; z2 = 9f/16; }
+			case NORTH -> { x1 = 7f/16; x2 = 9f/16; z1 = 8f/16; z2 = 10f/16; }
+			case SOUTH -> { x1 = 7f/16; x2 = 9f/16; z1 = 6f/16; z2 = 8f/16; }
+			case EAST  -> { x1 = 6f/16; x2 = 8f/16; z1 = 7f/16; z2 = 9f/16; }
+			case WEST  -> { x1 = 8f/16; x2 = 10f/16; z1 = 7f/16; z2 = 9f/16; }
 			default -> { return; }
 		}
 

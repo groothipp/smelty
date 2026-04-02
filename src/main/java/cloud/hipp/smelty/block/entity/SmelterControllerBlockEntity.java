@@ -309,7 +309,6 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 	private List<ValveBlockEntity> findOpenValves(ServerWorld serverWorld) {
 		List<ValveBlockEntity> valves = new ArrayList<>();
 
-		// Check each wall face for adjacent valves
 		for (int y = minY + 1; y < minY + height; y++) {
 			// North wall (z == minZ): check z == minZ - 1
 			for (int x = minX; x < minX + width; x++) {
@@ -598,11 +597,11 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 
 	// --- Screen ---
 
-	private SmelterData buildScreenData() {
+	public SmelterData buildScreenData() {
 		return new SmelterData(
 				heatLevel, maxVolume, currentVolume,
 				new EnumMap<>(moltenAlloy.getMaterials()),
-				unmeltedMaterials.getTotalVolumeMl()
+				new EnumMap<>(unmeltedMaterials.getMaterials())
 		);
 	}
 
@@ -618,6 +617,9 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 
 	@Override
 	public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+		if (player instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer) {
+			return new SmelterControllerScreenHandler(syncId, playerInventory, buildScreenData(), this, serverPlayer);
+		}
 		return new SmelterControllerScreenHandler(syncId, playerInventory, buildScreenData());
 	}
 

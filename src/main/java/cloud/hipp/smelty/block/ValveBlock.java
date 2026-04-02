@@ -110,27 +110,27 @@ public class ValveBlock extends BlockWithEntity {
 
 	private static VoxelShape buildSpigotShape(Direction facing) {
 		// Model elements (defined for NORTH, rotated for other directions):
-		// Flange: [5,4,14]-[11,10,16], Pipe: [6,5,6]-[10,9,14], Nozzle: [5,4,3]-[11,9,6]
+		// Flange: [5,4,14]-[11,10,16], Pipe: [6,5,11]-[10,9,14], Nozzle: [5,4,8]-[11,9,11]
 		return switch (facing) {
 			case NORTH -> VoxelShapes.union(
 					VoxelShapes.cuboid(5/16f, 4/16f, 14/16f, 11/16f, 10/16f, 1),
-					VoxelShapes.cuboid(6/16f, 5/16f, 6/16f, 10/16f, 9/16f, 14/16f),
-					VoxelShapes.cuboid(5/16f, 4/16f, 3/16f, 11/16f, 9/16f, 6/16f)
+					VoxelShapes.cuboid(6/16f, 5/16f, 11/16f, 10/16f, 9/16f, 14/16f),
+					VoxelShapes.cuboid(5/16f, 4/16f, 8/16f, 11/16f, 9/16f, 11/16f)
 			);
 			case SOUTH -> VoxelShapes.union(
 					VoxelShapes.cuboid(5/16f, 4/16f, 0, 11/16f, 10/16f, 2/16f),
-					VoxelShapes.cuboid(6/16f, 5/16f, 2/16f, 10/16f, 9/16f, 10/16f),
-					VoxelShapes.cuboid(5/16f, 4/16f, 10/16f, 11/16f, 9/16f, 13/16f)
+					VoxelShapes.cuboid(6/16f, 5/16f, 2/16f, 10/16f, 9/16f, 5/16f),
+					VoxelShapes.cuboid(5/16f, 4/16f, 5/16f, 11/16f, 9/16f, 8/16f)
 			);
 			case EAST -> VoxelShapes.union(
 					VoxelShapes.cuboid(0, 4/16f, 5/16f, 2/16f, 10/16f, 11/16f),
-					VoxelShapes.cuboid(2/16f, 5/16f, 6/16f, 10/16f, 9/16f, 10/16f),
-					VoxelShapes.cuboid(10/16f, 4/16f, 5/16f, 13/16f, 9/16f, 11/16f)
+					VoxelShapes.cuboid(2/16f, 5/16f, 6/16f, 5/16f, 9/16f, 10/16f),
+					VoxelShapes.cuboid(5/16f, 4/16f, 5/16f, 8/16f, 9/16f, 11/16f)
 			);
 			case WEST -> VoxelShapes.union(
 					VoxelShapes.cuboid(14/16f, 4/16f, 5/16f, 1, 10/16f, 11/16f),
-					VoxelShapes.cuboid(6/16f, 5/16f, 6/16f, 14/16f, 9/16f, 10/16f),
-					VoxelShapes.cuboid(3/16f, 4/16f, 5/16f, 6/16f, 9/16f, 11/16f)
+					VoxelShapes.cuboid(11/16f, 5/16f, 6/16f, 14/16f, 9/16f, 10/16f),
+					VoxelShapes.cuboid(8/16f, 4/16f, 5/16f, 11/16f, 9/16f, 11/16f)
 			);
 			default -> VoxelShapes.fullCube();
 		};

@@ -79,6 +79,17 @@ public class SmeltyBlocks {
 					.solidBlock((state, world, pos) -> false)
 	);
 
+	public static final Block ANALYSIS_BENCH = register("analysis_bench",
+			AnalysisBenchBlock::new,
+			AbstractBlock.Settings.create()
+					.mapColor(MapColor.OAK_TAN)
+					.strength(2.0F, 3.0F)
+					.sounds(BlockSoundGroup.WOOD)
+					.nonOpaque()
+					.solidBlock((state, world, pos) -> false)
+					.luminance(state -> state.get(AnalysisBenchBlock.HAS_PLATE) ? 10 : 0)
+	);
+
 	public static final Block SOLID_ALLOY = register("solid_alloy",
 			SolidAlloyBlock::new,
 			AbstractBlock.Settings.create()

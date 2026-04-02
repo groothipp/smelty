@@ -1,0 +1,194 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "wood": "minecraft:block/oak_planks",
+    "top": "minecraft:block/stripped_oak_log",
+    "metal": "minecraft:block/iron_block",
+    "particle": "minecraft:block/oak_planks"
+  },
+  "elements": [
+    {
+      "comment": "Table top",
+      "from": [0, 10, 0],
+      "to": [16, 12, 16],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east":  { "texture": "#wood" },
+        "west":  { "texture": "#wood" },
+        "up":    { "texture": "#top" },
+        "down":  { "texture": "#wood" }
+      }
+    },
+    {
+      "comment": "North rim",
+      "from": [0, 12, 0],
+      "to": [16, 13, 2],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east":  { "texture": "#wood" },
+        "west":  { "texture": "#wood" },
+        "up":    { "texture": "#top" }
+      }
+    },
+    {
+      "comment": "South rim",
+      "from": [0, 12, 14],
+      "to": [16, 13, 16],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east":  { "texture": "#wood" },
+        "west":  { "texture": "#wood" },
+        "up":    { "texture": "#top" }
+      }
+    },
+    {
+      "comment": "West rim",
+      "from": [0, 12, 2],
+      "to": [2, 13, 14],
+      "faces": {
+        "east":  { "texture": "#wood" },
+        "west":  { "texture": "#wood" },
+        "up":    { "texture": "#top" }
+      }
+    },
+    {
+      "comment": "East rim",
+      "from": [14, 12, 2],
+      "to": [16, 13, 14],
+      "faces": {
+        "east":  { "texture": "#wood" },
+        "west":  { "texture": "#wood" },
+        "up":    { "texture": "#top" }
+      }
+    },
+    {
+      "comment": "NW leg",
+      "from": [0, 0, 0],
+      "to": [2, 10, 2],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east":  { "texture": "#wood" },
+        "west":  { "texture": "#wood" },
+        "down":  { "texture": "#wood" }
+      }
+    },
+    {
+      "comment": "NE leg",
+      "from": [14, 0, 0],
+      "to": [16, 10, 2],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east":  { "texture": "#wood" },
+        "west":  { "texture": "#wood" },
+        "down":  { "texture": "#wood" }
+      }
+    },
+    {
+      "comment": "SW leg",
+      "from": [0, 0, 14],
+      "to": [2, 10, 16],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east":  { "texture": "#wood" },
+        "west":  { "texture": "#wood" },
+        "down":  { "texture": "#wood" }
+      }
+    },
+    {
+      "comment": "SE leg",
+      "from": [14, 0, 14],
+      "to": [16, 10, 16],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east":  { "texture": "#wood" },
+        "west":  { "texture": "#wood" },
+        "down":  { "texture": "#wood" }
+      }
+    },
+    {
+      "comment": "Arm post - vertical on back-left corner",
+      "from": [0, 13, 0],
+      "to": [2, 25, 2],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east":  { "texture": "#metal" },
+        "west":  { "texture": "#metal" },
+        "up":    { "texture": "#metal" }
+      }
+    },
+    {
+      "comment": "Arm pivot joint 1",
+      "from": [0, 23, 0],
+      "to": [3, 25, 3],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east":  { "texture": "#metal" },
+        "west":  { "texture": "#metal" },
+        "up":    { "texture": "#metal" },
+        "down":  { "texture": "#metal" }
+      }
+    },
+    {
+      "comment": "Arm segment 1 - diagonal from back-left toward center",
+      "from": [2, 22, 2],
+      "to": [8, 24, 4],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east":  { "texture": "#metal" },
+        "west":  { "texture": "#metal" },
+        "up":    { "texture": "#metal" },
+        "down":  { "texture": "#metal" }
+      }
+    },
+    {
+      "comment": "Arm pivot joint 2",
+      "from": [6, 21, 3],
+      "to": [9, 24, 6],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east":  { "texture": "#metal" },
+        "west":  { "texture": "#metal" },
+        "up":    { "texture": "#metal" },
+        "down":  { "texture": "#metal" }
+      }
+    },
+    {
+      "comment": "Arm segment 2 - extends over table center",
+      "from": [6, 20, 5],
+      "to": [10, 22, 7],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east":  { "texture": "#metal" },
+        "west":  { "texture": "#metal" },
+        "up":    { "texture": "#metal" },
+        "down":  { "texture": "#metal" }
+      }
+    },
+    {
+      "comment": "Lamp head - hangs over center",
+      "from": [6, 18, 5],
+      "to": [10, 20, 9],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east":  { "texture": "#metal" },
+        "west":  { "texture": "#metal" },
+        "up":    { "texture": "#metal" },
+        "down":  { "texture": "minecraft:block/glowstone" }
+      }
+    }
+  ]
+}

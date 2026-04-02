@@ -109,7 +109,7 @@ public class ValveBlockEntity extends BlockEntity {
 		boolean pushedDown = false;
 		int colorBeforePush = fluidComposition.getBlendedColor(); // capture color before fluid is drained
 
-		// Waterfall: check up to 3 blocks below for channels or basins
+		// Waterfall: check up to 3 blocks below for channels, basins, or tables
 		for (int dy = 1; dy <= 3 && remaining > 0; dy++) {
 			BlockPos below = pos.down(dy);
 			BlockEntity belowBe = world.getBlockEntity(below);
@@ -120,6 +120,11 @@ public class ValveBlockEntity extends BlockEntity {
 				break;
 			} else if (belowBe instanceof CastingBasinBlockEntity basin && !basin.isFull() && !basin.isSolidified()) {
 				int pushed = pushFluidToCasting(basin, remaining);
+				remaining -= pushed;
+				if (pushed > 0) pushedDown = true;
+				break;
+			} else if (belowBe instanceof CastingTableBlockEntity table && !table.isFull() && !table.isSolidified()) {
+				int pushed = pushFluidToCasting(table, remaining);
 				remaining -= pushed;
 				if (pushed > 0) pushedDown = true;
 				break;

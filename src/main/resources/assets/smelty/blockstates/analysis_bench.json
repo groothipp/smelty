@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=south,has_plate=false": { "model": "smelty:block/analysis_bench", "y": 0 },
+    "facing=south,has_plate=true":  { "model": "smelty:block/analysis_bench", "y": 0 },
+    "facing=west,has_plate=false":  { "model": "smelty:block/analysis_bench", "y": 90 },
+    "facing=west,has_plate=true":   { "model": "smelty:block/analysis_bench", "y": 90 },
+    "facing=north,has_plate=false": { "model": "smelty:block/analysis_bench", "y": 180 },
+    "facing=north,has_plate=true":  { "model": "smelty:block/analysis_bench", "y": 180 },
+    "facing=east,has_plate=false":  { "model": "smelty:block/analysis_bench", "y": 270 },
+    "facing=east,has_plate=true":   { "model": "smelty:block/analysis_bench", "y": 270 }
+  }
+}
