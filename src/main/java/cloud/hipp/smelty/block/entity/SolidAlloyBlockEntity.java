@@ -1,6 +1,7 @@
 package cloud.hipp.smelty.block.entity;
 
 import cloud.hipp.smelty.material.AlloyComposition;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
@@ -15,7 +16,6 @@ import net.minecraft.util.math.BlockPos;
 public class SolidAlloyBlockEntity extends BlockEntity {
 	private final AlloyComposition composition = new AlloyComposition();
 	private int volumeMl;
-	private boolean managed;
 
 	public SolidAlloyBlockEntity(BlockPos pos, BlockState state) {
 		super(SmeltyBlockEntities.SOLID_ALLOY, pos, state);
@@ -27,7 +27,8 @@ public class SolidAlloyBlockEntity extends BlockEntity {
 
 	public void setComposition(AlloyComposition source) {
 		composition.clear();
-		composition.mergeFrom(source);
+		AlloyComposition normalized = source.toNormalized(AlloyComposition.RATIO_BASE);
+		composition.mergeFrom(normalized);
 	}
 
 	public int getVolumeMl() {
@@ -36,14 +37,6 @@ public class SolidAlloyBlockEntity extends BlockEntity {
 
 	public void setVolumeMl(int volumeMl) {
 		this.volumeMl = volumeMl;
-	}
-
-	public boolean isManaged() {
-		return managed;
-	}
-
-	public void setManaged(boolean managed) {
-		this.managed = managed;
 	}
 
 	public int getColor() {
@@ -64,13 +57,28 @@ public class SolidAlloyBlockEntity extends BlockEntity {
 	protected void readData(ReadView view) {
 		composition.readFromView(view.getListReadView("Composition"));
 		volumeMl = view.getInt("VolumeMl", 0);
-		managed = view.getBoolean("Managed", false);
+
+		// Ensure volumeMl is set for old-format data where it may be 0
+		if (volumeMl <= 0 && !composition.isEmpty()) {
+			volumeMl = composition.getTotalVolumeMl();
+		}
+
+		// Normalize composition to ratios (handles old-format data with absolute volumes)
+		if (!composition.isEmpty() && composition.getTotalVolumeMl() != AlloyComposition.RATIO_BASE) {
+			AlloyComposition normalized = composition.toNormalized(AlloyComposition.RATIO_BASE);
+			composition.clear();
+			composition.mergeFrom(normalized);
+		}
+
+		// Trigger client-side chunk re-render so block color updates immediately
+		if (world != null && world.isClient()) {
+			world.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
+		}
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		composition.writeToView(view.getList("Composition"));
 		view.putInt("VolumeMl", volumeMl);
-		view.putBoolean("Managed", managed);
 	}
 }

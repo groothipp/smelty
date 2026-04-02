@@ -1,0 +1,28 @@
+{
+  "multipart": [
+    {
+      "when": { "down": "false" },
+      "apply": { "model": "smelty:block/channel_base" }
+    },
+    {
+      "when": { "down": "true" },
+      "apply": { "model": "smelty:block/channel_base_down" }
+    },
+    {
+      "when": { "north": "false" },
+      "apply": { "model": "smelty:block/channel_wall_north" }
+    },
+    {
+      "when": { "south": "false" },
+      "apply": { "model": "smelty:block/channel_wall_south" }
+    },
+    {
+      "when": { "east": "false" },
+      "apply": { "model": "smelty:block/channel_wall_east" }
+    },
+    {
+      "when": { "west": "false" },
+      "apply": { "model": "smelty:block/channel_wall_west" }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "side": "smelty:block/smelter_block",
+    "particle": "smelty:block/smelter_block"
+  },
+  "elements": [
+    {
+      "comment": "North section (full width, z=0 to z=6)",
+      "from": [0, 0, 0],
+      "to": [16, 4, 6],
+      "faces": {
+        "north": { "texture": "#side", "cullface": "north" },
+        "south": { "texture": "#side" },
+        "east":  { "texture": "#side", "cullface": "east" },
+        "west":  { "texture": "#side", "cullface": "west" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    },
+    {
+      "comment": "South section (full width, z=10 to z=16)",
+      "from": [0, 0, 10],
+      "to": [16, 4, 16],
+      "faces": {
+        "north": { "texture": "#side" },
+        "south": { "texture": "#side", "cullface": "south" },
+        "east":  { "texture": "#side", "cullface": "east" },
+        "west":  { "texture": "#side", "cullface": "west" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    },
+    {
+      "comment": "West plug (x=0 to x=6, z=6 to z=10)",
+      "from": [0, 0, 6],
+      "to": [6, 4, 10],
+      "faces": {
+        "east":  { "texture": "#side" },
+        "west":  { "texture": "#side", "cullface": "west" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    },
+    {
+      "comment": "East plug (x=10 to x=16, z=6 to z=10)",
+      "from": [10, 0, 6],
+      "to": [16, 4, 10],
+      "faces": {
+        "east":  { "texture": "#side", "cullface": "east" },
+        "west":  { "texture": "#side" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    }
+  ]
+}

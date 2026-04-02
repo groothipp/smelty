@@ -1,0 +1,74 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "side": "smelty:block/smelter_block",
+    "particle": "smelty:block/smelter_block"
+  },
+  "elements": [
+    {
+      "comment": "Bottom",
+      "from": [2, 0, 2],
+      "to": [14, 4, 14],
+      "faces": {
+        "north": { "texture": "#side" },
+        "south": { "texture": "#side" },
+        "east":  { "texture": "#side" },
+        "west":  { "texture": "#side" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    },
+    {
+      "comment": "North wall",
+      "from": [2, 0, 0],
+      "to": [14, 10, 2],
+      "faces": {
+        "north": { "texture": "#side", "cullface": "north" },
+        "south": { "texture": "#side" },
+        "east":  { "texture": "#side" },
+        "west":  { "texture": "#side" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    },
+    {
+      "comment": "South wall",
+      "from": [2, 0, 14],
+      "to": [14, 10, 16],
+      "faces": {
+        "north": { "texture": "#side" },
+        "south": { "texture": "#side", "cullface": "south" },
+        "east":  { "texture": "#side" },
+        "west":  { "texture": "#side" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    },
+    {
+      "comment": "East wall",
+      "from": [14, 0, 0],
+      "to": [16, 10, 16],
+      "faces": {
+        "north": { "texture": "#side" },
+        "south": { "texture": "#side" },
+        "east":  { "texture": "#side", "cullface": "east" },
+        "west":  { "texture": "#side" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    },
+    {
+      "comment": "West wall",
+      "from": [0, 0, 0],
+      "to": [2, 10, 16],
+      "faces": {
+        "north": { "texture": "#side" },
+        "south": { "texture": "#side" },
+        "east":  { "texture": "#side" },
+        "west":  { "texture": "#side", "cullface": "west" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    }
+  ]
+}

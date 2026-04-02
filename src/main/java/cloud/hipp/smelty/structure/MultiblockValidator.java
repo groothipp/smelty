@@ -7,7 +7,6 @@ import cloud.hipp.smelty.block.SolidAlloyBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.CampfireBlock;
-import net.minecraft.block.FluidBlock;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -87,8 +86,7 @@ public class MultiblockValidator {
 	}
 
 	private static boolean isAlloyBlock(BlockState state) {
-		return (state.getBlock() instanceof FluidBlock && state.isOf(SmeltyBlocks.MOLTEN_ALLOY_BLOCK))
-				|| state.getBlock() instanceof SolidAlloyBlock;
+		return state.getBlock() instanceof SolidAlloyBlock;
 	}
 
 	private static boolean isHeatSourceOrAir(BlockState state) {
@@ -117,6 +115,7 @@ public class MultiblockValidator {
 					} else {
 						// Layer 2+: perimeter is smelter/controller, interior is air (open top)
 						if (perimeter) {
+							boolean isCorner = (x == 0 || x == w - 1) && (z == 0 || z == d - 1);
 							if (pos.equals(controllerPos)) {
 								foundController = true;
 							} else if (!isSmelterBlock(state)) {

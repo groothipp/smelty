@@ -1,10 +1,8 @@
 package cloud.hipp.smelty.block;
 
 import cloud.hipp.smelty.Smelty;
-import cloud.hipp.smelty.fluid.SmeltyFluids;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
-import net.minecraft.block.FluidBlock;
 import net.minecraft.block.MapColor;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -25,6 +23,19 @@ public class SmeltyBlocks {
 					.requiresTool()
 	);
 
+	public static final Block VALVE = register("valve",
+			ValveBlock::new,
+			AbstractBlock.Settings.create()
+					.mapColor(MapColor.DEEPSLATE_GRAY)
+					.strength(3.5F, 6.0F)
+					.sounds(BlockSoundGroup.DEEPSLATE_BRICKS)
+					.requiresTool()
+					.nonOpaque()
+					.solidBlock((state, world, pos) -> false)
+					.suffocates((state, world, pos) -> false)
+					.blockVision((state, world, pos) -> false)
+	);
+
 	public static final Block SMELTER_CONTROLLER = register("smelter_controller",
 			SmelterControllerBlock::new,
 			AbstractBlock.Settings.create()
@@ -32,19 +43,40 @@ public class SmeltyBlocks {
 					.strength(3.5F, 6.0F)
 					.sounds(BlockSoundGroup.DEEPSLATE_BRICKS)
 					.requiresTool()
+					.luminance(state -> state.get(SmelterControllerBlock.LIT) ? 15 : 0)
 	);
 
-	public static final Block MOLTEN_ALLOY_BLOCK = registerDirect("molten_alloy",
-			new MoltenAlloyBlock(SmeltyFluids.MOLTEN_ALLOY_STILL,
-					AbstractBlock.Settings.create()
-							.mapColor(MapColor.ORANGE)
-							.noCollision()
-							.strength(100.0F)
-							.dropsNothing()
-							.liquid()
-							.replaceable()
-							.registryKey(RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(Smelty.MOD_ID, "molten_alloy")))
-			)
+	public static final Block CHANNEL = register("channel",
+			ChannelBlock::new,
+			AbstractBlock.Settings.create()
+					.mapColor(MapColor.DEEPSLATE_GRAY)
+					.strength(2.0F, 6.0F)
+					.sounds(BlockSoundGroup.DEEPSLATE_BRICKS)
+					.requiresTool()
+					.nonOpaque()
+					.solidBlock((state, world, pos) -> false)
+	);
+
+	public static final Block CASTING_BASIN = register("casting_basin",
+			CastingBasinBlock::new,
+			AbstractBlock.Settings.create()
+					.mapColor(MapColor.DEEPSLATE_GRAY)
+					.strength(2.0F, 6.0F)
+					.sounds(BlockSoundGroup.DEEPSLATE_BRICKS)
+					.requiresTool()
+					.nonOpaque()
+					.solidBlock((state, world, pos) -> false)
+	);
+
+	public static final Block CASTING_TABLE = register("casting_table",
+			CastingTableBlock::new,
+			AbstractBlock.Settings.create()
+					.mapColor(MapColor.DEEPSLATE_GRAY)
+					.strength(2.0F, 6.0F)
+					.sounds(BlockSoundGroup.DEEPSLATE_BRICKS)
+					.requiresTool()
+					.nonOpaque()
+					.solidBlock((state, world, pos) -> false)
 	);
 
 	public static final Block SOLID_ALLOY = register("solid_alloy",
@@ -56,11 +88,6 @@ public class SmeltyBlocks {
 					.requiresTool()
 					.dropsNothing() // We handle drops manually in onStateReplaced
 	);
-
-	private static Block registerDirect(String id, Block block) {
-		RegistryKey<Block> key = RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(Smelty.MOD_ID, id));
-		return Registry.register(Registries.BLOCK, key, block);
-	}
 
 	private static Block register(String id, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {
 		RegistryKey<Block> key = RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(Smelty.MOD_ID, id));

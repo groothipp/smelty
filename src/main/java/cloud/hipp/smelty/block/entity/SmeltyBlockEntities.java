@@ -16,6 +16,34 @@ public class SmeltyBlockEntities {
 					FabricBlockEntityTypeBuilder.create(SmelterControllerBlockEntity::new, SmeltyBlocks.SMELTER_CONTROLLER).build()
 			);
 
+	public static final BlockEntityType<ChannelBlockEntity> CHANNEL =
+			Registry.register(
+					Registries.BLOCK_ENTITY_TYPE,
+					Identifier.of(Smelty.MOD_ID, "channel"),
+					FabricBlockEntityTypeBuilder.create(ChannelBlockEntity::new, SmeltyBlocks.CHANNEL).build()
+			);
+
+	public static final BlockEntityType<CastingBasinBlockEntity> CASTING_BASIN =
+			Registry.register(
+					Registries.BLOCK_ENTITY_TYPE,
+					Identifier.of(Smelty.MOD_ID, "casting_basin"),
+					FabricBlockEntityTypeBuilder.create(CastingBasinBlockEntity::new, SmeltyBlocks.CASTING_BASIN).build()
+			);
+
+	public static final BlockEntityType<CastingTableBlockEntity> CASTING_TABLE =
+			Registry.register(
+					Registries.BLOCK_ENTITY_TYPE,
+					Identifier.of(Smelty.MOD_ID, "casting_table"),
+					FabricBlockEntityTypeBuilder.create(CastingTableBlockEntity::new, SmeltyBlocks.CASTING_TABLE).build()
+			);
+
+	public static final BlockEntityType<ValveBlockEntity> VALVE =
+			Registry.register(
+					Registries.BLOCK_ENTITY_TYPE,
+					Identifier.of(Smelty.MOD_ID, "valve"),
+					FabricBlockEntityTypeBuilder.create(ValveBlockEntity::new, SmeltyBlocks.VALVE).build()
+			);
+
 	public static final BlockEntityType<SolidAlloyBlockEntity> SOLID_ALLOY =
 			Registry.register(
 					Registries.BLOCK_ENTITY_TYPE,

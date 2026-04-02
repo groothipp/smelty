@@ -1,0 +1,20 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "side": "smelty:block/smelter_block"
+  },
+  "elements": [
+    {
+      "from": [0, 4, 14],
+      "to": [16, 8, 16],
+      "faces": {
+        "north": { "texture": "#side" },
+        "south": { "texture": "#side", "cullface": "south" },
+        "east":  { "texture": "#side" },
+        "west":  { "texture": "#side" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side" }
+      }
+    }
+  ]
+}

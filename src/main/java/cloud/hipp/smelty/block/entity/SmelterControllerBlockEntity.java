@@ -5,6 +5,7 @@ import cloud.hipp.smelty.block.SmelterBlock;
 import cloud.hipp.smelty.block.SmelterControllerBlock;
 import cloud.hipp.smelty.block.SmeltyBlocks;
 import cloud.hipp.smelty.block.SolidAlloyBlock;
+import cloud.hipp.smelty.block.ValveBlock;
 import cloud.hipp.smelty.material.AlloyComposition;
 import cloud.hipp.smelty.material.MaterialItems;
 import cloud.hipp.smelty.material.SmeltyMaterial;
@@ -16,7 +17,10 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageType;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -25,10 +29,16 @@ import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.util.Identifier;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import net.minecraft.text.Text;
@@ -38,7 +48,6 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -46,56 +55,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SmelterControllerBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<SmelterData> {
-	private static final int ML_PER_INTERIOR_BLOCK = 2000;
+	// Each interior block = 9 ingots, max volume = 2× interior volume
+	private static final int VOLUME_PER_INTERIOR_BLOCK = MaterialItems.UNITS_PER_INGOT * 9 * 2; // 1620
 
-	// Static color registries for fluid rendering
-	private static final Map<BlockPos, int[]> COLOR_REGISTRY = new ConcurrentHashMap<>();
-	private static final Map<BlockPos, Integer> OUTFLOW_COLORS = new ConcurrentHashMap<>();
+	private static final RegistryKey<DamageType> MOLTEN_ALLOY_DAMAGE =
+			RegistryKey.of(RegistryKeys.DAMAGE_TYPE, Identifier.of(Smelty.MOD_ID, "molten_alloy"));
 
-	public static int lookupFluidColor(BlockPos fluidPos) {
-		int closestColor = 0xFF6600;
-		int closestDistSq = Integer.MAX_VALUE;
+	// Client-side registry of active smelter bounds for overlay rendering
+	public record FluidBoundsData(int minX, int minY, int minZ, int width, int depth, int height,
+								  int maxVolume, int totalVolumeMl, int color) {}
+	private static final Map<BlockPos, FluidBoundsData> CLIENT_SMELTERS = new ConcurrentHashMap<>();
 
-		// Check outflow sources (point-to-point distance)
-		for (var entry : OUTFLOW_COLORS.entrySet()) {
-			BlockPos sourcePos = entry.getKey();
-			int dx = fluidPos.getX() - sourcePos.getX();
-			int dy = fluidPos.getY() - sourcePos.getY();
-			int dz = fluidPos.getZ() - sourcePos.getZ();
-			int distSq = dx * dx + dy * dy + dz * dz;
-			if (distSq < closestDistSq) {
-				closestDistSq = distSq;
-				closestColor = entry.getValue();
-			}
-		}
-
-		// Check smelter interiors (distance to nearest point on interior box)
-		for (var entry : COLOR_REGISTRY.entrySet()) {
-			int[] data = entry.getValue();
-			int color = data[0], mX = data[1], mY = data[2], mZ = data[3], w = data[4], d = data[5], h = data[6];
-			int cx = Math.max(mX + 1, Math.min(fluidPos.getX(), mX + w - 2));
-			int cy = Math.max(mY + 2, Math.min(fluidPos.getY(), mY + h - 1));
-			int cz = Math.max(mZ + 1, Math.min(fluidPos.getZ(), mZ + d - 2));
-			int dx = fluidPos.getX() - cx;
-			int dy = fluidPos.getY() - cy;
-			int dz = fluidPos.getZ() - cz;
-			int distSq = dx * dx + dy * dy + dz * dz;
-			if (distSq < closestDistSq) {
-				closestDistSq = distSq;
-				closestColor = color;
-			}
-		}
-
-		return closestColor;
-	}
-
-	private void updateColorRegistry() {
-		if (width > 0) {
-			COLOR_REGISTRY.put(pos.toImmutable(),
-					new int[]{cachedAlloyColor, minX, minY, minZ, width, depth, height});
-		} else {
-			COLOR_REGISTRY.remove(pos.toImmutable());
-		}
+	public static Map<BlockPos, FluidBoundsData> getClientSmelters() {
+		return CLIENT_SMELTERS;
 	}
 
 	// --- Structure data ---
@@ -109,18 +81,8 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 	// --- Alloy data ---
 	private final AlloyComposition moltenAlloy = new AlloyComposition();
 	private final AlloyComposition unmeltedMaterials = new AlloyComposition();
-	private int cachedAlloyColor = 0xFF6600;
-
-	// --- Queue/Stack for fluid and solid placement ---
-	private final ArrayDeque<BlockPos> emptyQueue = new ArrayDeque<>();
-	private final ArrayDeque<BlockPos> filledStack = new ArrayDeque<>();
-	private final ArrayDeque<BlockPos> solidPositions = new ArrayDeque<>();
-	private int lastSyncedFluidCount = -1;
-	private int lastSyncedSolidCount = -1;
-	private boolean needsInitialSync = false;
-
-	// --- Outflow management ---
-	private final List<BlockPos> activeOutflows = new ArrayList<>();
+	private int cachedAlloyColor = 0x808080;
+	private boolean needsClientSync;
 
 	public SmelterControllerBlockEntity(BlockPos pos, BlockState state) {
 		super(SmeltyBlockEntities.SMELTER_CONTROLLER, pos, state);
@@ -142,46 +104,16 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 			int interiorW = width - 2;
 			int interiorD = depth - 2;
 			int chamberH = height - 2;
-			this.maxVolume = interiorW * interiorD * chamberH * ML_PER_INTERIOR_BLOCK;
-			initializeQueues();
-			updateColorRegistry();
-			Smelty.LOGGER.info("Smelter formed! {}x{}x{}, heat: {}, max volume: {}mL", width, depth, height, heatLevel, maxVolume);
+			this.maxVolume = interiorW * interiorD * chamberH * VOLUME_PER_INTERIOR_BLOCK;
+			Smelty.LOGGER.info("Smelter formed! {}x{}x{}, heat: {}, max volume: {} ingots", width, depth, height, heatLevel, maxVolume / MaterialItems.UNITS_PER_INGOT);
 			spawnFormationParticles(result);
 		} else {
 			this.maxVolume = 0;
 			Smelty.LOGGER.info("Smelter structure invalid");
 		}
 
+		updateCurrentVolume();
 		markDirty();
-	}
-
-	private void initializeQueues() {
-		emptyQueue.clear();
-		filledStack.clear();
-		solidPositions.clear();
-		lastSyncedFluidCount = -1;
-		lastSyncedSolidCount = -1;
-
-		// Populate emptyQueue: bottom-up, X then Z per layer
-		for (int y = minY + 2; y < minY + height; y++) {
-			for (int x = minX + 1; x < minX + width - 1; x++) {
-				for (int z = minZ + 1; z < minZ + depth - 1; z++) {
-					BlockPos p = new BlockPos(x, y, z);
-					if (world != null) {
-						BlockState state = world.getBlockState(p);
-						if (state.isOf(SmeltyBlocks.MOLTEN_ALLOY_BLOCK)) {
-							filledStack.push(p);
-						} else if (state.isOf(SmeltyBlocks.SOLID_ALLOY)) {
-							solidPositions.push(p);
-						} else {
-							emptyQueue.add(p);
-						}
-					} else {
-						emptyQueue.add(p);
-					}
-				}
-			}
-		}
 	}
 
 	// --- Melting logic ---
@@ -227,7 +159,7 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 		double z2 = minZ + depth - 1;
 
 		Box interiorBox = new Box(x1, y1, z1, x2, y2, z2);
-		java.util.List<ItemEntity> items = serverWorld.getEntitiesByClass(ItemEntity.class, interiorBox, entity -> true);
+		List<ItemEntity> items = serverWorld.getEntitiesByClass(ItemEntity.class, interiorBox, entity -> true);
 
 		for (ItemEntity itemEntity : items) {
 			ItemStack stack = itemEntity.getStack();
@@ -263,6 +195,11 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 			}
 
 			if (processed > 0) {
+				serverWorld.playSound(null, itemEntity.getX(), itemEntity.getY(), itemEntity.getZ(),
+						SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundCategory.BLOCKS, 0.5f, 2.0f + serverWorld.getRandom().nextFloat() * 0.4f);
+				serverWorld.spawnParticles(ParticleTypes.FLAME,
+						itemEntity.getX(), itemEntity.getY() + 0.2, itemEntity.getZ(),
+						3 + processed, 0.15, 0.1, 0.15, 0.02);
 				if (processed >= itemCount) {
 					itemEntity.discard();
 				} else {
@@ -270,7 +207,9 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 				}
 				checkSolidification();
 				updateCurrentVolume();
+				updateCachedColor();
 				markDirty();
+				needsClientSync = true;
 			}
 		}
 	}
@@ -279,295 +218,126 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 		var beData = stack.get(net.minecraft.component.DataComponentTypes.BLOCK_ENTITY_DATA);
 		if (beData == null) return;
 
-		SolidAlloyBlockEntity tempBe = new SolidAlloyBlockEntity(pos, world.getBlockState(pos));
-		tempBe.setWorld(world);
+		SolidAlloyBlockEntity tempBe = new SolidAlloyBlockEntity(BlockPos.ORIGIN, SmeltyBlocks.SOLID_ALLOY.getDefaultState());
 		if (!beData.applyToBlockEntity(tempBe, serverWorld.getRegistryManager())) return;
 
 		AlloyComposition comp = tempBe.getComposition();
 		if (comp.isEmpty()) return;
 
-		int totalMl = comp.getTotalVolumeMl();
-		if (currentVolume + totalMl > maxVolume) return;
+		int volumeMl = tempBe.getVolumeMl();
+		if (volumeMl <= 0) return;
 
-		for (Map.Entry<SmeltyMaterial, Integer> entry : comp.getMaterials().entrySet()) {
-			if (canMelt(entry.getKey())) {
-				moltenAlloy.addMaterial(entry.getKey(), entry.getValue());
+		int itemCount = stack.getCount();
+		int processed = 0;
+
+		for (int i = 0; i < itemCount; i++) {
+			if (currentVolume + volumeMl > maxVolume) break;
+
+			// Reconstruct absolute volumes from normalized ratios
+			AlloyComposition absolute = comp.toNormalized(volumeMl);
+
+			for (Map.Entry<SmeltyMaterial, Integer> entry : absolute.getMaterials().entrySet()) {
+				if (canMelt(entry.getKey())) {
+					moltenAlloy.addMaterial(entry.getKey(), entry.getValue());
+				} else {
+					unmeltedMaterials.addMaterial(entry.getKey(), entry.getValue());
+				}
+			}
+
+			processed++;
+			updateCurrentVolume();
+		}
+
+		if (processed > 0) {
+			serverWorld.playSound(null, itemEntity.getX(), itemEntity.getY(), itemEntity.getZ(),
+					SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundCategory.BLOCKS, 0.5f, 2.0f + serverWorld.getRandom().nextFloat() * 0.4f);
+			serverWorld.spawnParticles(ParticleTypes.FLAME,
+					itemEntity.getX(), itemEntity.getY() + 0.2, itemEntity.getZ(),
+					3 + processed, 0.15, 0.1, 0.15, 0.02);
+			if (processed >= itemCount) {
+				itemEntity.discard();
 			} else {
-				unmeltedMaterials.addMaterial(entry.getKey(), entry.getValue());
+				stack.decrement(processed);
 			}
+			checkSolidification();
+			updateCurrentVolume();
+			updateCachedColor();
+			markDirty();
+			needsClientSync = true;
 		}
-
-		stack.decrement(1);
-		if (stack.isEmpty()) {
-			itemEntity.discard();
-		}
-
-		checkSolidification();
-		updateCurrentVolume();
-		markDirty();
 	}
 
-	// --- Fluid block management (Queue/Stack) ---
-
-	private void syncSolidBlocks(ServerWorld serverWorld) {
-		int bottomLayerCapacity = (width - 2) * (depth - 2);
-		int solidDesired = Math.min(unmeltedMaterials.getTotalVolumeMl() / 1000, bottomLayerCapacity);
-
-		if (solidDesired == lastSyncedSolidCount) return;
-		lastSyncedSolidCount = solidDesired;
-
-		// Fill: place solid alloy blocks at bottom layer only
-		while (solidPositions.size() < solidDesired && !emptyQueue.isEmpty()) {
-			BlockPos nextPos = emptyQueue.peek();
-			if (nextPos.getY() != minY + 2) break; // only bottom layer
-			emptyQueue.poll();
-			serverWorld.setBlockState(nextPos, SmeltyBlocks.SOLID_ALLOY.getDefaultState(), Block.NOTIFY_LISTENERS);
-			BlockEntity be = serverWorld.getBlockEntity(nextPos);
-			if (be instanceof SolidAlloyBlockEntity solidBe) {
-				solidBe.setComposition(unmeltedMaterials);
-				solidBe.setManaged(true);
-				solidBe.markDirty();
-			}
-			solidPositions.push(nextPos);
-		}
-
-		// Drain: remove excess solid blocks
-		if (solidPositions.size() > solidDesired) {
-			SolidAlloyBlock.setSuppressDrops(true);
-			try {
-				while (solidPositions.size() > solidDesired) {
-					BlockPos drainPos = solidPositions.pop();
-					serverWorld.setBlockState(drainPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
-					emptyQueue.addFirst(drainPos);
-				}
-			} finally {
-				SolidAlloyBlock.setSuppressDrops(false);
-			}
-		}
-
-		markDirty();
-	}
-
-	private void syncFluidBlocks(ServerWorld serverWorld) {
-		int desiredCount = moltenAlloy.getTotalVolumeMl() / 1000;
-
-		if (desiredCount == lastSyncedFluidCount) return;
-		lastSyncedFluidCount = desiredCount;
-
-		// Update color
-		int newColor = moltenAlloy.isEmpty() ? 0xFF6600 : moltenAlloy.getBlendedColor();
-		if (newColor != cachedAlloyColor) {
-			cachedAlloyColor = newColor;
-			updateColorRegistry();
-			serverWorld.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
-		}
-
-		BlockState fluidState = SmeltyBlocks.MOLTEN_ALLOY_BLOCK.getDefaultState();
-
-		// Fill: dequeue empty → place fluid → push to filled
-		while (filledStack.size() < desiredCount && !emptyQueue.isEmpty()) {
-			BlockPos fillPos = emptyQueue.poll();
-			serverWorld.setBlockState(fillPos, fluidState, Block.NOTIFY_LISTENERS);
-			filledStack.push(fillPos);
-		}
-
-		// Drain: pop filled → remove fluid → return to empty queue
-		while (filledStack.size() > desiredCount) {
-			BlockPos drainPos = filledStack.pop();
-			serverWorld.setBlockState(drainPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
-			emptyQueue.addFirst(drainPos);
-		}
-
-		markDirty();
-	}
-
-	/** Called when controller block is broken — clears all interior blocks, data is lost */
-	public void clearAllInteriorBlocks(ServerWorld serverWorld) {
-		clearOutflows(serverWorld);
-		SolidAlloyBlock.setSuppressDrops(true);
-		try {
-			while (!filledStack.isEmpty()) {
-				BlockPos p = filledStack.pop();
-				BlockState current = serverWorld.getBlockState(p);
-				if (current.isOf(SmeltyBlocks.MOLTEN_ALLOY_BLOCK) || current.isOf(SmeltyBlocks.SOLID_ALLOY)) {
-					serverWorld.setBlockState(p, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
-				}
-			}
-			while (!solidPositions.isEmpty()) {
-				BlockPos p = solidPositions.pop();
-				if (serverWorld.getBlockState(p).isOf(SmeltyBlocks.SOLID_ALLOY)) {
-					serverWorld.setBlockState(p, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
-				}
-			}
-		} finally {
-			SolidAlloyBlock.setSuppressDrops(false);
-		}
-		COLOR_REGISTRY.remove(pos.toImmutable());
-	}
-
-	/** Called when structure becomes invalid — keeps alloy data and all blocks in place */
-	private void onInvalidated(ServerWorld serverWorld) {
-		// Leave all blocks in place — fluid flows naturally, solids stay visible
-		// Keep filledStack so outflow can drain from it; clear the rest for re-validation rebuild
-		emptyQueue.clear();
-		solidPositions.clear();
-
-		this.valid = false;
-		this.heatLevel = 0;
-		this.lastSyncedFluidCount = -1;
-		this.lastSyncedSolidCount = -1;
-		markDirty();
-	}
-
-	// --- Outflow management ---
-
-	/**
-	 * Runs every 20 ticks while the smelter is invalid.
-	 * For each wall gap, processes the outflow drain cycle.
-	 */
-	private void manageOutflow(ServerWorld serverWorld) {
-		if (width <= 0) return;
-
-		long time = world.getTime();
-		if (time % 20 != 0) return;
-
-		List<BlockPos> gaps = findWallGaps();
-
-		// Clean up outflows at sealed gaps (wall replaced)
-		var iter = activeOutflows.iterator();
-		while (iter.hasNext()) {
-			BlockPos outflow = iter.next();
-			if (!gaps.contains(outflow)) {
-				despawnOutflow(serverWorld, outflow);
-				iter.remove();
-			}
-		}
-
-		// Process each gap through the drain cycle
-		for (BlockPos gap : gaps) {
-			processOutflowCycle(serverWorld, gap);
-		}
-
-		// Update alloy color after all drains
+	private void updateCachedColor() {
 		if (!moltenAlloy.isEmpty()) {
-			int newColor = moltenAlloy.getBlendedColor();
-			if (newColor != cachedAlloyColor) {
-				cachedAlloyColor = newColor;
-				updateColorRegistry();
-				for (BlockPos outflow : activeOutflows) {
-					OUTFLOW_COLORS.put(outflow.toImmutable(), cachedAlloyColor);
-				}
+			cachedAlloyColor = moltenAlloy.getBlendedColor();
+		} else if (!unmeltedMaterials.isEmpty()) {
+			cachedAlloyColor = unmeltedMaterials.getBlendedColor();
+		}
+	}
+
+	// --- Valve output ---
+
+	private static final int VALVE_FLOW_RATE_PER_TICK = 81; // 9 ingots/sec at 20 tps
+
+	private void manageValveOutput(ServerWorld serverWorld) {
+		if (moltenAlloy.isEmpty()) return;
+
+		List<ValveBlockEntity> openValves = findOpenValves(serverWorld);
+		for (ValveBlockEntity valve : openValves) {
+			if (moltenAlloy.isEmpty()) break;
+			if (valve.isFull()) continue;
+
+			int pushAmount = Math.min(VALVE_FLOW_RATE_PER_TICK, moltenAlloy.getTotalVolumeMl());
+			if (pushAmount <= 0) continue;
+
+			AlloyComposition offer = moltenAlloy.createSnapshot(pushAmount);
+			int accepted = valve.addFluid(offer, pushAmount);
+			if (accepted > 0) {
+				moltenAlloy.drain(accepted);
+				updateCurrentVolume();
+				updateCachedColor();
+				markDirty();
+				needsClientSync = true;
 			}
 		}
-
-		markDirty();
 	}
 
 	/**
-	 * Processes one drain cycle for a single wall gap.
-	 * Follows the flow: check → spawn → drain → maybe remove block → maybe despawn.
+	 * Find open valves attached to the outside of the smelter walls.
+	 * Scans one block outside each wall face.
 	 */
-	private void processOutflowCycle(ServerWorld serverWorld, BlockPos gapPos) {
-		int fluidLevelY = filledStack.isEmpty() ? minY + 1 : filledStack.peek().getY();
+	private List<ValveBlockEntity> findOpenValves(ServerWorld serverWorld) {
+		List<ValveBlockEntity> valves = new ArrayList<>();
 
-		// Step 1: if volume is 0 or fluid level is below the hole, do nothing
-		if (moltenAlloy.getTotalVolumeMl() == 0 || fluidLevelY < gapPos.getY()) {
-			if (activeOutflows.contains(gapPos)) {
-				despawnOutflow(serverWorld, gapPos);
-				activeOutflows.remove(gapPos);
-			}
-			return;
-		}
-
-		// Skip if backed up
-		if (isOutflowBackedUp(serverWorld, gapPos)) return;
-
-		// Step 2: spawn a molten alloy fluid source at the hole
-		if (!serverWorld.getBlockState(gapPos).isOf(SmeltyBlocks.MOLTEN_ALLOY_BLOCK)) {
-			serverWorld.setBlockState(gapPos, SmeltyBlocks.MOLTEN_ALLOY_BLOCK.getDefaultState(), Block.NOTIFY_LISTENERS);
-		}
-		if (!activeOutflows.contains(gapPos)) {
-			activeOutflows.add(gapPos.toImmutable());
-		}
-		OUTFLOW_COLORS.put(gapPos.toImmutable(), cachedAlloyColor);
-
-		// Step 3: decrease current volume by 1 block
-		moltenAlloy.drain(1000);
-		updateCurrentVolume();
-
-		// Step 4: if current volume is above interior capacity (maxVolume / 2), skip to step 7
-		int interiorCapacityMl = maxVolume / 2;
-		if (currentVolume < interiorCapacityMl) {
-			// Step 5: pop filled stack, destroy block, add to free queue
-			if (!filledStack.isEmpty()) {
-				BlockPos drainPos = filledStack.pop();
-				if (serverWorld.getBlockState(drainPos).isOf(SmeltyBlocks.MOLTEN_ALLOY_BLOCK)) {
-					serverWorld.setBlockState(drainPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
-				}
-				emptyQueue.addFirst(drainPos);
-				updateCurrentVolume();
-			}
-		}
-
-		// Step 6: if fluid level now below hole or volume is 0, despawn and stop
-		fluidLevelY = filledStack.isEmpty() ? minY + 1 : filledStack.peek().getY();
-		if (fluidLevelY < gapPos.getY() || moltenAlloy.getTotalVolumeMl() == 0) {
-			despawnOutflow(serverWorld, gapPos);
-			activeOutflows.remove(gapPos);
-			return;
-		}
-
-		// Step 7: wait (handled by the 20-tick cycle in manageOutflow)
-	}
-
-	private void despawnOutflow(ServerWorld serverWorld, BlockPos outflowPos) {
-		if (serverWorld.getBlockState(outflowPos).isOf(SmeltyBlocks.MOLTEN_ALLOY_BLOCK)) {
-			serverWorld.setBlockState(outflowPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
-		}
-		OUTFLOW_COLORS.remove(outflowPos.toImmutable());
-	}
-
-	private void clearOutflows(ServerWorld serverWorld) {
-		for (BlockPos outflow : activeOutflows) {
-			despawnOutflow(serverWorld, outflow);
-		}
-		activeOutflows.clear();
-	}
-
-	private List<BlockPos> findWallGaps() {
-		List<BlockPos> gaps = new ArrayList<>();
-		for (int y = minY + 2; y < minY + height; y++) {
+		// Check each wall face for adjacent valves
+		for (int y = minY + 1; y < minY + height; y++) {
+			// North wall (z == minZ): check z == minZ - 1
 			for (int x = minX; x < minX + width; x++) {
-				for (int z = minZ; z < minZ + depth; z++) {
-					boolean onPerimeter = x == minX || x == minX + width - 1 || z == minZ || z == minZ + depth - 1;
-					if (!onPerimeter) continue;
-
-					BlockPos wallPos = new BlockPos(x, y, z);
-					if (wallPos.equals(pos)) continue; // skip controller
-
-					BlockState state = world.getBlockState(wallPos);
-					if (!(state.getBlock() instanceof SmelterBlock) && !(state.getBlock() instanceof SmelterControllerBlock)) {
-						gaps.add(wallPos);
-					}
-				}
+				checkValveAt(serverWorld, new BlockPos(x, y, minZ - 1), valves);
+			}
+			// South wall (z == minZ + depth - 1): check z == minZ + depth
+			for (int x = minX; x < minX + width; x++) {
+				checkValveAt(serverWorld, new BlockPos(x, y, minZ + depth), valves);
+			}
+			// West wall (x == minX): check x == minX - 1
+			for (int z = minZ; z < minZ + depth; z++) {
+				checkValveAt(serverWorld, new BlockPos(minX - 1, y, z), valves);
+			}
+			// East wall (x == minX + width - 1): check x == minX + width
+			for (int z = minZ; z < minZ + depth; z++) {
+				checkValveAt(serverWorld, new BlockPos(minX + width, y, z), valves);
 			}
 		}
-		return gaps;
+		return valves;
 	}
 
-	private Direction getOutwardDirection(BlockPos gapPos) {
-		if (gapPos.getX() == minX) return Direction.WEST;
-		if (gapPos.getX() == minX + width - 1) return Direction.EAST;
-		if (gapPos.getZ() == minZ) return Direction.NORTH;
-		if (gapPos.getZ() == minZ + depth - 1) return Direction.SOUTH;
-		return Direction.NORTH;
-	}
-
-	private boolean isOutflowBackedUp(ServerWorld serverWorld, BlockPos outflowPos) {
-		Direction outward = getOutwardDirection(outflowPos);
-		BlockPos outsidePos = outflowPos.offset(outward);
-		BlockState state = serverWorld.getBlockState(outsidePos);
-		return !state.isAir() && !state.isLiquid();
+	private void checkValveAt(ServerWorld world, BlockPos pos, List<ValveBlockEntity> valves) {
+		BlockState state = world.getBlockState(pos);
+		if (state.getBlock() instanceof ValveBlock && state.get(ValveBlock.OPEN)) {
+			if (world.getBlockEntity(pos) instanceof ValveBlockEntity valve) {
+				valves.add(valve);
+			}
+		}
 	}
 
 	// --- Heat scanning ---
@@ -590,7 +360,9 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 				checkSolidification();
 			}
 			updateCurrentVolume();
+			updateCachedColor();
 			markDirty();
+			needsClientSync = true;
 		}
 	}
 
@@ -623,20 +395,35 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 			int interiorW = width - 2;
 			int interiorD = depth - 2;
 			int chamberH = height - 2;
-			this.maxVolume = interiorW * interiorD * chamberH * ML_PER_INTERIOR_BLOCK;
-			initializeQueues();
-			updateColorRegistry();
+			this.maxVolume = interiorW * interiorD * chamberH * VOLUME_PER_INTERIOR_BLOCK;
 			updateCurrentVolume();
-			lastSyncedFluidCount = -1;
-			lastSyncedSolidCount = -1;
 			markDirty();
+			needsClientSync = true;
 
-			if (wasInvalid && world instanceof ServerWorld sw) {
-				clearOutflows(sw);
+			if (wasInvalid) {
 				Smelty.LOGGER.info("Smelter re-validated! {}x{}x{}, heat: {}", width, depth, height, heatLevel);
 				spawnFormationParticles(result);
 			}
 		}
+	}
+
+	public void forceRevalidate() {
+		if (world instanceof ServerWorld) {
+			revalidateStructure();
+		}
+	}
+
+	/** Called when structure becomes invalid — all data is lost */
+	private void onInvalidated(ServerWorld serverWorld) {
+		this.valid = false;
+		this.heatLevel = 0;
+		this.maxVolume = 0;
+		this.currentVolume = 0;
+		this.moltenAlloy.clear();
+		this.unmeltedMaterials.clear();
+		this.cachedAlloyColor = 0x808080;
+		markDirty();
+		serverWorld.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
 	}
 
 	// --- Particles ---
@@ -663,25 +450,14 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 	public static void serverTick(World world, BlockPos pos, BlockState state, SmelterControllerBlockEntity be) {
 		if (!(world instanceof ServerWorld serverWorld)) return;
 
-		// Force color registry update after load
-		if (be.needsInitialSync) {
-			be.needsInitialSync = false;
-			be.updateColorRegistry();
-			be.updateCurrentVolume();
-			serverWorld.updateListeners(pos, state, state, Block.NOTIFY_LISTENERS);
-		}
-
 		long time = world.getTime();
 
-		// Revalidate structure every 2 seconds (even when invalid, to detect wall repairs)
+		// Revalidate structure every 2 seconds
 		if (time % 40 == 0) {
 			be.revalidateStructure();
 		}
 
-		if (!be.valid) {
-			be.manageOutflow(serverWorld);
-			return;
-		}
+		if (!be.valid) return;
 
 		// Rescan heat sources every second
 		if (time % 20 == 0) {
@@ -693,9 +469,66 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 			be.processItemEntities(serverWorld);
 		}
 
-		// Sync solid blocks (bottom layer) then fluid blocks
-		be.syncSolidBlocks(serverWorld);
-		be.syncFluidBlocks(serverWorld);
+		// Push molten alloy through open valves into adjacent channels
+		be.manageValveOutput(serverWorld);
+
+		// Molten alloy effects: damage, item destruction, sounds, light
+		boolean hasMolten = !be.moltenAlloy.isEmpty();
+		if (hasMolten) {
+			int totalMl = be.moltenAlloy.getTotalVolumeMl() + be.unmeltedMaterials.getTotalVolumeMl();
+			float fillRatio = (float) totalMl / be.maxVolume;
+			double fluidTopY = be.minY + 2 + fillRatio * (be.height - 2);
+
+			Box fluidBox = new Box(
+					be.minX + 1, be.minY + 2, be.minZ + 1,
+					be.minX + be.width - 1, fluidTopY, be.minZ + be.depth - 1);
+
+			// Fire damage to living entities in molten alloy
+			if (time % 10 == 0) {
+				RegistryEntry<DamageType> damageType = serverWorld.getRegistryManager()
+						.getOrThrow(RegistryKeys.DAMAGE_TYPE).getOrThrow(MOLTEN_ALLOY_DAMAGE);
+				DamageSource moltenAlloyDamage = new DamageSource(damageType);
+				for (LivingEntity entity : serverWorld.getEntitiesByClass(LivingEntity.class, fluidBox, e -> true)) {
+					entity.setOnFireFor(5);
+					entity.damage(serverWorld, moltenAlloyDamage, 4.0f);
+				}
+			}
+
+			// Destroy non-smeltable items in molten alloy
+			if (time % 10 == 0) {
+				Box interiorBox = new Box(
+						be.minX + 1, be.minY + 2, be.minZ + 1,
+						be.minX + be.width - 1, be.minY + be.height, be.minZ + be.depth - 1);
+				for (ItemEntity item : serverWorld.getEntitiesByClass(ItemEntity.class, interiorBox, e -> true)) {
+					ItemStack itemStack = item.getStack();
+					if (!itemStack.isOf(SmeltyBlocks.SOLID_ALLOY.asItem()) && MaterialItems.lookup(itemStack) == null) {
+						serverWorld.playSound(null, item.getX(), item.getY(), item.getZ(),
+								SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundCategory.BLOCKS, 0.5f, 2.0f + serverWorld.getRandom().nextFloat() * 0.4f);
+						item.discard();
+					}
+				}
+			}
+
+			// Lava bubbling sounds
+			if (time % 80 == 0 && serverWorld.getRandom().nextFloat() < 0.5f) {
+				double soundX = be.minX + 1 + serverWorld.getRandom().nextFloat() * (be.width - 2);
+				double soundZ = be.minZ + 1 + serverWorld.getRandom().nextFloat() * (be.depth - 2);
+				serverWorld.playSound(null, soundX, fluidTopY, soundZ,
+						SoundEvents.BLOCK_LAVA_AMBIENT, SoundCategory.BLOCKS, 0.8f, 1.0f);
+			}
+		}
+
+		// Update light emission
+		boolean isLit = state.get(SmelterControllerBlock.LIT);
+		if (isLit != hasMolten) {
+			world.setBlockState(pos, state.with(SmelterControllerBlock.LIT, hasMolten), Block.NOTIFY_ALL);
+		}
+
+		// Sync render data to client
+		if (be.needsClientSync) {
+			be.needsClientSync = false;
+			serverWorld.updateListeners(pos, state, state, Block.NOTIFY_LISTENERS);
+		}
 
 		if (be.heatLevel <= 0) return;
 
@@ -735,12 +568,21 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 		}
 	}
 
-	// --- Accessors ---
+	// --- Accessors (used by renderer and GUI) ---
 
 	public boolean isValid() { return valid; }
 	public int getHeatLevel() { return heatLevel; }
 	public int getMaxVolume() { return maxVolume; }
 	public int getCurrentVolume() { return currentVolume; }
+	public int getCachedAlloyColor() { return cachedAlloyColor; }
+	public AlloyComposition getMoltenAlloy() { return moltenAlloy; }
+	public AlloyComposition getUnmeltedMaterials() { return unmeltedMaterials; }
+	public int getWidth() { return width; }
+	public int getDepth() { return depth; }
+	public int getHeight() { return height; }
+	public int getMinX() { return minX; }
+	public int getMinY() { return minY; }
+	public int getMinZ() { return minZ; }
 
 	// --- Client sync ---
 
@@ -788,48 +630,44 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 		this.depth = view.getInt("Depth", 0);
 		this.height = view.getInt("Height", 0);
 		this.heatLevel = view.getInt("HeatLevel", 0);
-		this.maxVolume = view.getInt("MaxVolume", 0);
-		this.currentVolume = view.getInt("CurrentVolume", 0);
+		// Recalculate maxVolume from dimensions to handle unit system changes
+		if (valid) {
+			int interiorW = width - 2;
+			int interiorD = depth - 2;
+			int chamberH = height - 2;
+			this.maxVolume = interiorW * interiorD * chamberH * VOLUME_PER_INTERIOR_BLOCK;
+		} else {
+			this.maxVolume = 0;
+		}
+		// currentVolume is derived from compositions via updateCurrentVolume() below
 		this.minX = view.getInt("MinX", 0);
 		this.minY = view.getInt("MinY", 0);
 		this.minZ = view.getInt("MinZ", 0);
-		this.cachedAlloyColor = view.getInt("CachedAlloyColor", 0xFF6600);
+		this.cachedAlloyColor = view.getInt("CachedAlloyColor", 0x808080);
 
 		moltenAlloy.readFromView(view.getListReadView("MoltenAlloy"));
 		unmeltedMaterials.readFromView(view.getListReadView("UnmeltedMaterials"));
 
-		// Read queue/stack
-		emptyQueue.clear();
-		for (ReadView item : view.getListReadView("EmptyQueue")) {
-			emptyQueue.add(new BlockPos(
-					item.getInt("X", 0), item.getInt("Y", 0), item.getInt("Z", 0)));
-		}
-		filledStack.clear();
-		for (ReadView item : view.getListReadView("FilledStack")) {
-			filledStack.push(new BlockPos(
-					item.getInt("X", 0), item.getInt("Y", 0), item.getInt("Z", 0)));
-		}
-		solidPositions.clear();
-		for (ReadView item : view.getListReadView("SolidPositions")) {
-			solidPositions.push(new BlockPos(
-					item.getInt("X", 0), item.getInt("Y", 0), item.getInt("Z", 0)));
-		}
-		activeOutflows.clear();
-		for (ReadView item : view.getListReadView("ActiveOutflows")) {
-			BlockPos outflowPos = new BlockPos(
-					item.getInt("X", 0), item.getInt("Y", 0), item.getInt("Z", 0));
-			activeOutflows.add(outflowPos);
-			OUTFLOW_COLORS.put(outflowPos.toImmutable(), cachedAlloyColor);
-		}
-
-		// If we have valid bounds but empty queues, rebuild
-		if (valid && width > 0 && emptyQueue.isEmpty() && filledStack.isEmpty()) {
-			// Defer to first tick since world may not be available yet
-			needsInitialSync = true;
-		}
-
 		updateCurrentVolume();
-		needsInitialSync = true;
+		updateClientRegistry();
+	}
+
+	private void updateClientRegistry() {
+		if (valid && maxVolume > 0) {
+			int totalMl = moltenAlloy.getTotalVolumeMl() + unmeltedMaterials.getTotalVolumeMl();
+			int color = !moltenAlloy.isEmpty() ? moltenAlloy.getBlendedColor()
+					: (!unmeltedMaterials.isEmpty() ? unmeltedMaterials.getBlendedColor() : 0);
+			CLIENT_SMELTERS.put(pos.toImmutable(), new FluidBoundsData(
+					minX, minY, minZ, width, depth, height, maxVolume, totalMl, color));
+		} else {
+			CLIENT_SMELTERS.remove(pos.toImmutable());
+		}
+	}
+
+	@Override
+	public void markRemoved() {
+		super.markRemoved();
+		CLIENT_SMELTERS.remove(pos.toImmutable());
 	}
 
 	@Override
@@ -839,8 +677,6 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 		view.putInt("Depth", depth);
 		view.putInt("Height", height);
 		view.putInt("HeatLevel", heatLevel);
-		view.putInt("MaxVolume", maxVolume);
-		view.putInt("CurrentVolume", currentVolume);
 		view.putInt("MinX", minX);
 		view.putInt("MinY", minY);
 		view.putInt("MinZ", minZ);
@@ -848,35 +684,5 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 
 		moltenAlloy.writeToView(view.getList("MoltenAlloy"));
 		unmeltedMaterials.writeToView(view.getList("UnmeltedMaterials"));
-
-		// Write queue/stack
-		WriteView.ListView queueList = view.getList("EmptyQueue");
-		for (BlockPos p : emptyQueue) {
-			WriteView item = queueList.add();
-			item.putInt("X", p.getX());
-			item.putInt("Y", p.getY());
-			item.putInt("Z", p.getZ());
-		}
-		WriteView.ListView stackList = view.getList("FilledStack");
-		for (BlockPos p : filledStack) {
-			WriteView item = stackList.add();
-			item.putInt("X", p.getX());
-			item.putInt("Y", p.getY());
-			item.putInt("Z", p.getZ());
-		}
-		WriteView.ListView solidList = view.getList("SolidPositions");
-		for (BlockPos p : solidPositions) {
-			WriteView item = solidList.add();
-			item.putInt("X", p.getX());
-			item.putInt("Y", p.getY());
-			item.putInt("Z", p.getZ());
-		}
-		WriteView.ListView outflowList = view.getList("ActiveOutflows");
-		for (BlockPos p : activeOutflows) {
-			WriteView item = outflowList.add();
-			item.putInt("X", p.getX());
-			item.putInt("Y", p.getY());
-			item.putInt("Z", p.getZ());
-		}
 	}
 }

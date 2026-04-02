@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=north,open=false": { "model": "smelty:block/valve" },
+    "facing=south,open=false": { "model": "smelty:block/valve", "y": 180 },
+    "facing=east,open=false":  { "model": "smelty:block/valve", "y": 90 },
+    "facing=west,open=false":  { "model": "smelty:block/valve", "y": 270 },
+    "facing=north,open=true":  { "model": "smelty:block/valve_open" },
+    "facing=south,open=true":  { "model": "smelty:block/valve_open", "y": 180 },
+    "facing=east,open=true":   { "model": "smelty:block/valve_open", "y": 90 },
+    "facing=west,open=true":   { "model": "smelty:block/valve_open", "y": 270 }
+  }
+}

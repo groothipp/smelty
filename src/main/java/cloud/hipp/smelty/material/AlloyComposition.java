@@ -7,6 +7,8 @@ import java.util.EnumMap;
 import java.util.Map;
 
 public class AlloyComposition {
+	public static final int RATIO_BASE = 100;
+
 	private final EnumMap<SmeltyMaterial, Integer> materials = new EnumMap<>(SmeltyMaterial.class);
 
 	public void addMaterial(SmeltyMaterial material, int volumeMl) {
@@ -37,10 +39,29 @@ public class AlloyComposition {
 			return;
 		}
 		double ratio = (double) drainMl / totalMl;
+		// Compute rounded drain amounts
+		EnumMap<SmeltyMaterial, Integer> drainAmounts = new EnumMap<>(SmeltyMaterial.class);
+		int roundedTotal = 0;
+		SmeltyMaterial largestMat = null;
+		int largestDrain = 0;
+		for (var entry : materials.entrySet()) {
+			int toDrain = (int) Math.round(ratio * entry.getValue());
+			drainAmounts.put(entry.getKey(), toDrain);
+			roundedTotal += toDrain;
+			if (toDrain > largestDrain) {
+				largestDrain = toDrain;
+				largestMat = entry.getKey();
+			}
+		}
+		// Adjust largest material to compensate for rounding error
+		if (roundedTotal != drainMl && largestMat != null) {
+			drainAmounts.put(largestMat, drainAmounts.get(largestMat) + (drainMl - roundedTotal));
+		}
+		// Apply
 		var iterator = materials.entrySet().iterator();
 		while (iterator.hasNext()) {
 			var entry = iterator.next();
-			int toDrain = (int) Math.round(ratio * entry.getValue());
+			int toDrain = drainAmounts.getOrDefault(entry.getKey(), 0);
 			int remaining = entry.getValue() - toDrain;
 			if (remaining <= 0) {
 				iterator.remove();
@@ -48,6 +69,130 @@ public class AlloyComposition {
 				entry.setValue(remaining);
 			}
 		}
+	}
+
+	/**
+	 * Drains proportionally and returns a new AlloyComposition containing the drained portion.
+	 */
+	public AlloyComposition drainAndReturn(int drainMl) {
+		AlloyComposition drained = new AlloyComposition();
+		int totalMl = getTotalVolumeMl();
+		if (totalMl == 0 || drainMl <= 0) return drained;
+		if (drainMl >= totalMl) {
+			drained.mergeFrom(this);
+			clear();
+			return drained;
+		}
+		double ratio = (double) drainMl / totalMl;
+		// Compute rounded drain amounts
+		EnumMap<SmeltyMaterial, Integer> drainAmounts = new EnumMap<>(SmeltyMaterial.class);
+		int roundedTotal = 0;
+		SmeltyMaterial largestMat = null;
+		int largestDrain = 0;
+		for (var entry : materials.entrySet()) {
+			int toDrain = (int) Math.round(ratio * entry.getValue());
+			drainAmounts.put(entry.getKey(), toDrain);
+			roundedTotal += toDrain;
+			if (toDrain > largestDrain) {
+				largestDrain = toDrain;
+				largestMat = entry.getKey();
+			}
+		}
+		// Adjust largest material to compensate for rounding error
+		if (roundedTotal != drainMl && largestMat != null) {
+			drainAmounts.put(largestMat, drainAmounts.get(largestMat) + (drainMl - roundedTotal));
+		}
+		// Apply
+		var iterator = materials.entrySet().iterator();
+		while (iterator.hasNext()) {
+			var entry = iterator.next();
+			int toDrain = drainAmounts.getOrDefault(entry.getKey(), 0);
+			if (toDrain > 0) {
+				drained.addMaterial(entry.getKey(), toDrain);
+			}
+			int remaining = entry.getValue() - toDrain;
+			if (remaining <= 0) {
+				iterator.remove();
+			} else {
+				entry.setValue(remaining);
+			}
+		}
+		return drained;
+	}
+
+	/**
+	 * Returns a new AlloyComposition representing what the given amount
+	 * of this composition would look like, without modifying this instance.
+	 */
+	public AlloyComposition createSnapshot(int amountMl) {
+		AlloyComposition snapshot = new AlloyComposition();
+		int totalMl = getTotalVolumeMl();
+		if (totalMl == 0 || amountMl <= 0) return snapshot;
+		if (amountMl >= totalMl) {
+			snapshot.mergeFrom(this);
+			return snapshot;
+		}
+		double ratio = (double) amountMl / totalMl;
+		int roundedTotal = 0;
+		SmeltyMaterial largestMat = null;
+		int largestAmount = 0;
+		EnumMap<SmeltyMaterial, Integer> amounts = new EnumMap<>(SmeltyMaterial.class);
+		for (var entry : materials.entrySet()) {
+			int amount = (int) Math.round(ratio * entry.getValue());
+			amounts.put(entry.getKey(), amount);
+			roundedTotal += amount;
+			if (amount > largestAmount) {
+				largestAmount = amount;
+				largestMat = entry.getKey();
+			}
+		}
+		if (roundedTotal != amountMl && largestMat != null) {
+			amounts.put(largestMat, amounts.get(largestMat) + (amountMl - roundedTotal));
+		}
+		for (var entry : amounts.entrySet()) {
+			if (entry.getValue() > 0) {
+				snapshot.addMaterial(entry.getKey(), entry.getValue());
+			}
+		}
+		return snapshot;
+	}
+
+	/**
+	 * Returns a new AlloyComposition with material values proportionally scaled
+	 * to sum to targetTotal, preserving ratios. Used to normalize compositions
+	 * to a canonical form (e.g., RATIO_BASE) and to reconstruct absolute volumes
+	 * from normalized ratios.
+	 */
+	public AlloyComposition toNormalized(int targetTotal) {
+		AlloyComposition result = new AlloyComposition();
+		int total = getTotalVolumeMl();
+		if (total == 0 || targetTotal <= 0) return result;
+		if (total == targetTotal) {
+			result.mergeFrom(this);
+			return result;
+		}
+		int roundedTotal = 0;
+		SmeltyMaterial largestMat = null;
+		int largestAmount = 0;
+		EnumMap<SmeltyMaterial, Integer> amounts = new EnumMap<>(SmeltyMaterial.class);
+		for (var entry : materials.entrySet()) {
+			int amount = (int) Math.round((double) entry.getValue() / total * targetTotal);
+			amounts.put(entry.getKey(), amount);
+			roundedTotal += amount;
+			if (amount > largestAmount) {
+				largestAmount = amount;
+				largestMat = entry.getKey();
+			}
+		}
+		if (roundedTotal != targetTotal && largestMat != null) {
+			amounts.put(largestMat, amounts.get(largestMat) + (targetTotal - roundedTotal));
+		}
+		for (var entry : amounts.entrySet()) {
+			if (entry.getValue() > 0) {
+				result.addMaterial(entry.getKey(), entry.getValue());
+			}
+		}
+		return result;
 	}
 
 	public Map<SmeltyMaterial, Integer> getMaterials() {
@@ -72,7 +217,7 @@ public class AlloyComposition {
 
 	public int getBlendedColor() {
 		int totalMl = getTotalVolumeMl();
-		if (totalMl == 0) return 0xFF6600; // default orange
+		if (totalMl == 0) return 0x808080; // default gray (no materials)
 
 		double r = 0, g = 0, b = 0;
 		for (var entry : materials.entrySet()) {

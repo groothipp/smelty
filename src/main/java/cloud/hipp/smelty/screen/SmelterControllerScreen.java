@@ -1,5 +1,6 @@
 package cloud.hipp.smelty.screen;
 
+import cloud.hipp.smelty.material.MaterialItems;
 import cloud.hipp.smelty.material.SmeltyMaterial;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
@@ -20,7 +21,6 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 	private static final int HEAT_BAR_WIDTH = 18;
 	private static final int BAR_HEIGHT = 52;
 	private static final int VOLUME_BAR_WIDTH = 110;
-	private static final int INGOT_ML = 111;
 
 	public SmelterControllerScreen(SmelterControllerScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title);
@@ -69,9 +69,11 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 		int volumeBarX = 60;
 		drawVolumeBar(context, volumeBarX, barY, data.currentVolume(), data.maxVolume());
 
-		// Volume text below bar
+		// Volume text below bar (display in ingots)
+		int curIngots = data.currentVolume() / MaterialItems.UNITS_PER_INGOT;
+		int maxIngots = data.maxVolume() / MaterialItems.UNITS_PER_INGOT;
 		int percentage = data.maxVolume() > 0 ? (data.currentVolume() * 100 / data.maxVolume()) : 0;
-		String volText = data.currentVolume() + " / " + data.maxVolume() + " (" + percentage + "%)";
+		String volText = curIngots + " / " + maxIngots + " ingots (" + percentage + "%)";
 		int volTextW = textRenderer.getWidth(volText);
 		context.drawTextWithShadow(textRenderer, Text.literal(volText),
 				volumeBarX + (VOLUME_BAR_WIDTH - volTextW) / 2, barY + BAR_HEIGHT + 5, 0xFF55FFFF);
@@ -128,17 +130,18 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 		}
 	}
 
-	private String formatIngots(int ml) {
-		if (ml >= 1000 && ml % 1000 == 0) {
-			int blocks = ml / 1000;
-			return blocks + (blocks == 1 ? " block" : " blocks");
+	private String formatIngots(int volume) {
+		int ingots = volume / MaterialItems.UNITS_PER_INGOT;
+		int remainder = volume % MaterialItems.UNITS_PER_INGOT;
+		if (remainder == 0) {
+			if (ingots % 9 == 0 && ingots >= 9) {
+				int blocks = ingots / 9;
+				return blocks + (blocks == 1 ? " block" : " blocks");
+			}
+			return ingots + (ingots == 1 ? " ingot" : " ingots");
 		}
-		double ingots = ml / (double) INGOT_ML;
-		if (Math.abs(ingots - Math.round(ingots)) < 0.01) {
-			int whole = (int) Math.round(ingots);
-			return whole + (whole == 1 ? " ingot" : " ingots");
-		}
-		return String.format("%.1f ingots", ingots);
+		double fractional = volume / (double) MaterialItems.UNITS_PER_INGOT;
+		return String.format("%.1f ingots", fractional);
 	}
 
 	private int getMaterialColor(SmeltyMaterial material) {

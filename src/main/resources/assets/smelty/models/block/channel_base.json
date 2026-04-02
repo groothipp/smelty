@@ -1,0 +1,22 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "side": "smelty:block/smelter_block",
+    "particle": "smelty:block/smelter_block"
+  },
+  "elements": [
+    {
+      "comment": "Bottom slab",
+      "from": [0, 0, 0],
+      "to": [16, 4, 16],
+      "faces": {
+        "north": { "texture": "#side", "cullface": "north" },
+        "south": { "texture": "#side", "cullface": "south" },
+        "east":  { "texture": "#side", "cullface": "east" },
+        "west":  { "texture": "#side", "cullface": "west" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side", "cullface": "down" }
+      }
+    }
+  ]
+}

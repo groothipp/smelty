@@ -1,0 +1,205 @@
+package cloud.hipp.smelty.client.render;
+
+import cloud.hipp.smelty.block.CastingBasinBlock;
+import cloud.hipp.smelty.block.CastingTableBlock;
+import cloud.hipp.smelty.block.ChannelBlock;
+import cloud.hipp.smelty.block.ValveBlock;
+import cloud.hipp.smelty.block.entity.ValveBlockEntity;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.block.entity.BlockEntityRenderer;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.render.block.entity.state.BlockEntityRenderState;
+import net.minecraft.client.render.command.ModelCommandRenderer;
+import net.minecraft.client.render.command.OrderedRenderCommandQueue;
+import net.minecraft.client.render.state.CameraRenderState;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import org.joml.Matrix4f;
+
+public class ValveBlockEntityRenderer
+		implements BlockEntityRenderer<ValveBlockEntity, ValveBlockEntityRenderer.RenderState> {
+
+	private static final Identifier FLUID_TEXTURE = Identifier.of("smelty", "textures/block/molten_alloy_still.png");
+	private static final float V_FRAME = 1f / 20f;
+	private static final float OVERLAP = 0.005f;
+
+	public ValveBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
+	}
+
+	@Override
+	public RenderState createRenderState() {
+		return new RenderState();
+	}
+
+	@Override
+	public void updateRenderState(ValveBlockEntity entity, RenderState state, float tickDelta,
+			Vec3d cameraPos, ModelCommandRenderer.CrumblingOverlayCommand crumbling) {
+		BlockEntityRenderState.updateBlockEntityRenderState(entity, state, crumbling);
+
+		state.fluidLevel = entity.getFluidLevelMl();
+		state.color = entity.getColor();
+
+		BlockState blockState = entity.getCachedState();
+		if (blockState.getBlock() instanceof ValveBlock) {
+			state.facing = blockState.get(ValveBlock.FACING);
+		} else {
+			state.facing = Direction.NORTH;
+		}
+
+		// Compute waterfall depth — render when valve has fluid OR is actively flowing down
+		state.waterfallDepth = 0;
+		state.activeDownwardFlow = entity.isActiveDownwardFlow();
+		state.flowColor = entity.getFlowColor();
+		if (entity.getFluidLevelMl() > 0 || entity.isActiveDownwardFlow()) {
+			World world = entity.getWorld();
+			if (world != null) {
+				BlockPos pos = entity.getPos();
+				for (int dy = 1; dy <= 3; dy++) {
+					BlockPos below = pos.down(dy);
+					Block block = world.getBlockState(below).getBlock();
+					if (block instanceof ChannelBlock || block instanceof CastingBasinBlock || block instanceof CastingTableBlock) {
+						state.waterfallDepth = dy;
+						break;
+					}
+					if (!world.getBlockState(below).isAir()) break;
+				}
+			}
+		}
+		state.animationTime = entity.getWorld() != null ? entity.getWorld().getTime() + tickDelta : 0;
+	}
+
+	@Override
+	public void render(RenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue,
+			CameraRenderState camera) {
+		if (!state.activeDownwardFlow) return;
+
+		// Animation: 38-step pingpong cycle (frames 0-19-0), 2 ticks per frame
+		int step = ((int) state.animationTime / 2) % 38;
+		int frame = step < 20 ? step : 38 - step;
+		float v0 = frame * V_FRAME;
+		float v1 = v0 + V_FRAME;
+
+		// Stream position at the nozzle opening
+		// Nozzle model coords (facing=north): [5,4,3]-[11,9,6], stream at center-bottom
+		float x1, x2, z1, z2;
+		switch (state.facing) {
+			case NORTH -> { x1 = 7f/16; x2 = 9f/16; z1 = 3f/16; z2 = 5f/16; }
+			case SOUTH -> { x1 = 7f/16; x2 = 9f/16; z1 = 11f/16; z2 = 13f/16; }
+			case EAST  -> { x1 = 11f/16; x2 = 13f/16; z1 = 7f/16; z2 = 9f/16; }
+			case WEST  -> { x1 = 3f/16; x2 = 5f/16; z1 = 7f/16; z2 = 9f/16; }
+			default -> { return; }
+		}
+
+		// Stream height: from nozzle down to target (or block floor if no target)
+		float y2 = 5f / 16f; // top: inside nozzle
+		float y1;
+		if (state.waterfallDepth > 0) {
+			y1 = -state.waterfallDepth + 4f / 16f - OVERLAP; // bottom: into target trough
+		} else {
+			y1 = 0; // bottom: block floor
+		}
+
+		// Use flowColor when valve is empty but actively flowing
+		int baseColor = state.fluidLevel > 0 ? state.color : state.flowColor;
+		int color = baseColor | 0xFF000000;
+
+		var renderLayer = RenderLayers.entitySolid(FLUID_TEXTURE);
+		matrices.push();
+		queue.submitCustom(matrices, renderLayer, (entry, vc) -> {
+			Matrix4f matrix = entry.getPositionMatrix();
+			int light = 15728880;
+
+			// Double-sided rendering for waterfall stream visibility from all angles
+
+			// Top (both sides)
+			vc.vertex(matrix, x1, y2, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+			vc.vertex(matrix, x1, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+			vc.vertex(matrix, x2, y2, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+			vc.vertex(matrix, x2, y2, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+
+			vc.vertex(matrix, x2, y2, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, -1, 0);
+			vc.vertex(matrix, x2, y2, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, -1, 0);
+			vc.vertex(matrix, x1, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, -1, 0);
+			vc.vertex(matrix, x1, y2, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, -1, 0);
+
+			// Bottom (both sides)
+			vc.vertex(matrix, x2, y1, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, -1, 0);
+			vc.vertex(matrix, x2, y1, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, -1, 0);
+			vc.vertex(matrix, x1, y1, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, -1, 0);
+			vc.vertex(matrix, x1, y1, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, -1, 0);
+
+			vc.vertex(matrix, x1, y1, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+			vc.vertex(matrix, x1, y1, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+			vc.vertex(matrix, x2, y1, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+			vc.vertex(matrix, x2, y1, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 1, 0);
+
+			// North (both sides)
+			vc.vertex(matrix, x1, y1, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+			vc.vertex(matrix, x2, y1, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+			vc.vertex(matrix, x2, y2, z1).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+			vc.vertex(matrix, x1, y2, z1).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+
+			vc.vertex(matrix, x1, y2, z1).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+			vc.vertex(matrix, x2, y2, z1).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+			vc.vertex(matrix, x2, y1, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+			vc.vertex(matrix, x1, y1, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+
+			// South (both sides)
+			vc.vertex(matrix, x2, y1, z2).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+			vc.vertex(matrix, x1, y1, z2).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+			vc.vertex(matrix, x1, y2, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+			vc.vertex(matrix, x2, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
+
+			vc.vertex(matrix, x2, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+			vc.vertex(matrix, x1, y2, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+			vc.vertex(matrix, x1, y1, z2).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+			vc.vertex(matrix, x2, y1, z2).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, -1);
+
+			// West (both sides)
+			vc.vertex(matrix, x1, y1, z2).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+			vc.vertex(matrix, x1, y1, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+			vc.vertex(matrix, x1, y2, z1).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+			vc.vertex(matrix, x1, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+
+			vc.vertex(matrix, x1, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+			vc.vertex(matrix, x1, y2, z1).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+			vc.vertex(matrix, x1, y1, z1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+			vc.vertex(matrix, x1, y1, z2).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+
+			// East (both sides)
+			vc.vertex(matrix, x2, y1, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+			vc.vertex(matrix, x2, y1, z2).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+			vc.vertex(matrix, x2, y2, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+			vc.vertex(matrix, x2, y2, z1).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(1, 0, 0);
+
+			vc.vertex(matrix, x2, y2, z1).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+			vc.vertex(matrix, x2, y2, z2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+			vc.vertex(matrix, x2, y1, z2).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+			vc.vertex(matrix, x2, y1, z1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(-1, 0, 0);
+		});
+		matrices.pop();
+	}
+
+	@Override
+	public boolean rendersOutsideBoundingBox() {
+		return true;
+	}
+
+	public static class RenderState extends BlockEntityRenderState {
+		public int fluidLevel;
+		public int color;
+		public Direction facing = Direction.NORTH;
+		public int waterfallDepth; // 0 = none, 1-3 = blocks to target
+		public boolean activeDownwardFlow;
+		public int flowColor;
+		public float animationTime;
+	}
+}

@@ -15,6 +15,7 @@ import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
+import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.EnumProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.ActionResult;
@@ -27,15 +28,16 @@ import org.jspecify.annotations.Nullable;
 public class SmelterControllerBlock extends BlockWithEntity {
 	public static final MapCodec<SmelterControllerBlock> CODEC = createCodec(SmelterControllerBlock::new);
 	public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
+	public static final BooleanProperty LIT = Properties.LIT;
 
 	public SmelterControllerBlock(Settings settings) {
 		super(settings);
-		setDefaultState(getDefaultState().with(FACING, Direction.NORTH));
+		setDefaultState(getDefaultState().with(FACING, Direction.NORTH).with(LIT, false));
 	}
 
 	@Override
 	protected void appendProperties(StateManager.Builder<net.minecraft.block.Block, BlockState> builder) {
-		builder.add(FACING);
+		builder.add(FACING, LIT);
 	}
 
 	@Override
@@ -73,10 +75,6 @@ public class SmelterControllerBlock extends BlockWithEntity {
 
 	@Override
 	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-		BlockEntity be = world.getBlockEntity(pos);
-		if (be instanceof SmelterControllerBlockEntity controller) {
-			controller.clearAllInteriorBlocks(world);
-		}
 		super.onStateReplaced(state, world, pos, moved);
 	}
 

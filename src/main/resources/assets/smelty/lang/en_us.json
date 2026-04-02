@@ -1,6 +1,11 @@
 {
   "block.smelty.smelter_block": "Smelter Block",
   "block.smelty.smelter_controller": "Smelter Controller",
-  "block.smelty.molten_alloy": "Molten Alloy",
-  "block.smelty.solid_alloy": "Solid Alloy"
+  "block.smelty.valve": "Valve",
+  "block.smelty.channel": "Channel",
+  "block.smelty.casting_basin": "Casting Basin",
+  "block.smelty.casting_table": "Casting Table",
+  "block.smelty.solid_alloy": "Alloy Block",
+  "death.attack.molten_alloy": "%1$s tried to swim in molten alloy",
+  "death.attack.molten_alloy.player": "%1$s tried to swim in molten alloy to escape %2$s"
 }
