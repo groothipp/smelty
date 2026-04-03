@@ -85,11 +85,12 @@ public class ChannelBlockEntity extends BlockEntity {
 		if (accepted <= 0) return 0;
 
 		AlloyComposition portion = source.drainAndReturn(accepted);
+		int actualVolume = portion.getTotalVolumeMl();
 		fluidComposition.mergeFrom(portion);
-		fluidLevel += accepted;
+		fluidLevel += actualVolume;
 		needsSync = true;
 		markDirty();
-		return accepted;
+		return actualVolume;
 	}
 
 	/**
@@ -186,43 +187,38 @@ public class ChannelBlockEntity extends BlockEntity {
 
 		// Merge all fluid into one pool
 		AlloyComposition pool = new AlloyComposition();
-		int totalFluid = 0;
 		for (ChannelBlockEntity ch : network) {
 			if (ch.fluidLevel > 0) {
 				pool.mergeFrom(ch.fluidComposition);
 				ch.fluidComposition.clear();
-				totalFluid += ch.fluidLevel;
 				ch.fluidLevel = 0;
 			}
 		}
 
 		// Track which channels pushed fluid downward for waterfall rendering
 		Set<BlockPos> downwardFlowChannels = new HashSet<>();
-		int poolColor = totalFluid > 0 ? pool.getBlendedColor() : 0;
+		int poolColor = !pool.isEmpty() ? pool.getBlendedColor() : 0;
 
-		if (totalFluid > 0) {
+		if (!pool.isEmpty()) {
 			// Push from the pool to gravity targets and endpoints
 			for (ChannelBlockEntity ch : network) {
-				if (totalFluid <= 0) break;
+				if (pool.isEmpty()) break;
 
 				// Gravity: waterfall up to 3 blocks below
-				for (int dy = 1; dy <= 3 && totalFluid > 0; dy++) {
+				for (int dy = 1; dy <= 3 && !pool.isEmpty(); dy++) {
 					BlockPos below = ch.getPos().down(dy);
 					if (visited.contains(below)) break; // same network
 					BlockEntity belowBe = world.getBlockEntity(below);
 					if (belowBe instanceof ChannelBlockEntity belowCh && !belowCh.isFull()) {
-						int pushed = pushFromPool(pool, belowCh, totalFluid);
-						totalFluid -= pushed;
+						int pushed = pushFromPool(pool, belowCh, pool.getTotalVolumeMl());
 						if (pushed > 0) downwardFlowChannels.add(ch.getPos());
 						break;
 					} else if (belowBe instanceof CastingBasinBlockEntity basin && !basin.isFull() && !basin.isSolidified()) {
-						int pushed = pushFromPoolToCasting(pool, basin, totalFluid);
-						totalFluid -= pushed;
+						int pushed = pushFromPoolToCasting(pool, basin, pool.getTotalVolumeMl());
 						if (pushed > 0) downwardFlowChannels.add(ch.getPos());
 						break;
 					} else if (belowBe instanceof CastingTableBlockEntity table && !table.isFull() && !table.isSolidified()) {
-						int pushed = pushFromPoolToCasting(pool, table, totalFluid);
-						totalFluid -= pushed;
+						int pushed = pushFromPoolToCasting(pool, table, pool.getTotalVolumeMl());
 						if (pushed > 0) downwardFlowChannels.add(ch.getPos());
 						break;
 					} else if (!world.getBlockState(below).isAir()) {
@@ -234,16 +230,17 @@ public class ChannelBlockEntity extends BlockEntity {
 			}
 
 			// Distribute remaining fluid evenly across channels
-			if (totalFluid > 0 && pool.getTotalVolumeMl() > 0) {
-				int perChannel = totalFluid / network.size();
-				int remainder = totalFluid % network.size();
+			int poolVolume = pool.getTotalVolumeMl();
+			if (poolVolume > 0) {
+				int perChannel = poolVolume / network.size();
+				int remainder = poolVolume % network.size();
 				for (int i = 0; i < network.size(); i++) {
 					ChannelBlockEntity ch = network.get(i);
 					int share = perChannel + (i < remainder ? 1 : 0);
 					if (share > 0 && pool.getTotalVolumeMl() > 0) {
 						AlloyComposition portion = pool.drainAndReturn(share);
 						ch.fluidComposition.mergeFrom(portion);
-						ch.fluidLevel = share;
+						ch.fluidLevel = portion.getTotalVolumeMl();
 					}
 				}
 			}
@@ -264,10 +261,11 @@ public class ChannelBlockEntity extends BlockEntity {
 	private int pushFromPool(AlloyComposition pool, ChannelBlockEntity target, int available) {
 		int push = Math.min(FLOW_RATE_PER_TICK, available);
 		if (push <= 0) return 0;
-		AlloyComposition offer = pool.createSnapshot(push);
-		int accepted = target.addFluid(offer, push);
-		if (accepted > 0) {
-			pool.drain(accepted);
+		AlloyComposition portion = pool.drainAndReturn(push);
+		int accepted = target.addFluid(portion, push);
+		// Return unaccepted fluid to pool
+		if (portion.getTotalVolumeMl() > 0) {
+			pool.mergeFrom(portion);
 		}
 		return accepted;
 	}
@@ -275,10 +273,10 @@ public class ChannelBlockEntity extends BlockEntity {
 	private int pushFromPoolToCasting(AlloyComposition pool, CastingBasinBlockEntity basin, int available) {
 		int push = Math.min(FLOW_RATE_PER_TICK, available);
 		if (push <= 0) return 0;
-		AlloyComposition offer = pool.createSnapshot(push);
-		int accepted = basin.addFluid(offer, push);
-		if (accepted > 0) {
-			pool.drain(accepted);
+		AlloyComposition portion = pool.drainAndReturn(push);
+		int accepted = basin.addFluid(portion, push);
+		if (portion.getTotalVolumeMl() > 0) {
+			pool.mergeFrom(portion);
 		}
 		return accepted;
 	}
@@ -286,10 +284,10 @@ public class ChannelBlockEntity extends BlockEntity {
 	private int pushFromPoolToCasting(AlloyComposition pool, CastingTableBlockEntity table, int available) {
 		int push = Math.min(FLOW_RATE_PER_TICK, available);
 		if (push <= 0) return 0;
-		AlloyComposition offer = pool.createSnapshot(push);
-		int accepted = table.addFluid(offer, push);
-		if (accepted > 0) {
-			pool.drain(accepted);
+		AlloyComposition portion = pool.drainAndReturn(push);
+		int accepted = table.addFluid(portion, push);
+		if (portion.getTotalVolumeMl() > 0) {
+			pool.mergeFrom(portion);
 		}
 		return accepted;
 	}

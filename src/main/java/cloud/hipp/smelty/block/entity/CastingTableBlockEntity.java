@@ -129,11 +129,12 @@ public class CastingTableBlockEntity extends BlockEntity {
 		if (accepted <= 0) return 0;
 
 		AlloyComposition portion = source.drainAndReturn(accepted);
+		int actualVolume = portion.getTotalVolumeMl();
 		fluidComposition.mergeFrom(portion);
-		fluidLevelMl += accepted;
+		fluidLevelMl += actualVolume;
 		needsSync = true;
 		markDirty();
-		return accepted;
+		return actualVolume;
 	}
 
 	public void serverTick(ServerWorld world) {
@@ -352,11 +353,18 @@ public class CastingTableBlockEntity extends BlockEntity {
 	}
 
 	private ItemStack createAlloyStack(Item item) {
+		// Normalize to coarse base (5% resolution) to collapse ±1-2 mL drain rounding,
+		// ensuring ingots from the same alloy batch always have identical component data.
+		AlloyComposition normalized = fluidComposition.toNormalized(AlloyComposition.ITEM_RATIO_BASE);
 		ItemStack stack = new ItemStack(item);
+		java.util.List<Float> percentages = new java.util.ArrayList<>();
+		for (cloud.hipp.smelty.material.SmeltyMaterial mat : cloud.hipp.smelty.material.SmeltyMaterial.values()) {
+			percentages.add((float) normalized.getMaterials().getOrDefault(mat, 0));
+		}
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
-						fluidComposition.toPercentages(), java.util.List.of(), java.util.List.of(),
-						java.util.List.of(getColor())));
+						percentages, java.util.List.of(), java.util.List.of(),
+						java.util.List.of(normalized.getBlendedColor())));
 		return stack;
 	}
 

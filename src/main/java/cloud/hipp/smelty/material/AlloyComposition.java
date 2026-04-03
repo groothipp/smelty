@@ -8,6 +8,12 @@ import java.util.Map;
 
 public class AlloyComposition {
 	public static final int RATIO_BASE = 100;
+	/**
+	 * Coarser normalization base for item stacking. Using 20 (5% resolution)
+	 * collapses the ±1-2 mL drain rounding that occurs during fluid transfer,
+	 * ensuring ingots cast from the same alloy batch always have identical data.
+	 */
+	public static final int ITEM_RATIO_BASE = 20;
 
 	private final EnumMap<SmeltyMaterial, Integer> materials = new EnumMap<>(SmeltyMaterial.class);
 
@@ -43,19 +49,21 @@ public class AlloyComposition {
 		EnumMap<SmeltyMaterial, Integer> drainAmounts = new EnumMap<>(SmeltyMaterial.class);
 		int roundedTotal = 0;
 		SmeltyMaterial largestMat = null;
-		int largestDrain = 0;
+		int largestValue = 0;
 		for (var entry : materials.entrySet()) {
 			int toDrain = (int) Math.round(ratio * entry.getValue());
 			drainAmounts.put(entry.getKey(), toDrain);
 			roundedTotal += toDrain;
-			if (toDrain > largestDrain) {
-				largestDrain = toDrain;
+			// Track the material with the largest actual value (best target for adjustment)
+			if (largestMat == null || entry.getValue() > largestValue) {
+				largestValue = entry.getValue();
 				largestMat = entry.getKey();
 			}
 		}
-		// Adjust largest material to compensate for rounding error
+		// Adjust largest material to compensate for rounding error, clamped to [0, value]
 		if (roundedTotal != drainMl && largestMat != null) {
-			drainAmounts.put(largestMat, drainAmounts.get(largestMat) + (drainMl - roundedTotal));
+			int adjusted = drainAmounts.get(largestMat) + (drainMl - roundedTotal);
+			drainAmounts.put(largestMat, Math.max(0, Math.min(adjusted, materials.get(largestMat))));
 		}
 		// Apply
 		var iterator = materials.entrySet().iterator();
@@ -88,19 +96,21 @@ public class AlloyComposition {
 		EnumMap<SmeltyMaterial, Integer> drainAmounts = new EnumMap<>(SmeltyMaterial.class);
 		int roundedTotal = 0;
 		SmeltyMaterial largestMat = null;
-		int largestDrain = 0;
+		int largestValue = 0;
 		for (var entry : materials.entrySet()) {
 			int toDrain = (int) Math.round(ratio * entry.getValue());
 			drainAmounts.put(entry.getKey(), toDrain);
 			roundedTotal += toDrain;
-			if (toDrain > largestDrain) {
-				largestDrain = toDrain;
+			// Track the material with the largest actual value (best target for adjustment)
+			if (largestMat == null || entry.getValue() > largestValue) {
+				largestValue = entry.getValue();
 				largestMat = entry.getKey();
 			}
 		}
-		// Adjust largest material to compensate for rounding error
+		// Adjust largest material to compensate for rounding error, clamped to [0, value]
 		if (roundedTotal != drainMl && largestMat != null) {
-			drainAmounts.put(largestMat, drainAmounts.get(largestMat) + (drainMl - roundedTotal));
+			int adjusted = drainAmounts.get(largestMat) + (drainMl - roundedTotal);
+			drainAmounts.put(largestMat, Math.max(0, Math.min(adjusted, materials.get(largestMat))));
 		}
 		// Apply
 		var iterator = materials.entrySet().iterator();
@@ -135,19 +145,21 @@ public class AlloyComposition {
 		double ratio = (double) amountMl / totalMl;
 		int roundedTotal = 0;
 		SmeltyMaterial largestMat = null;
-		int largestAmount = 0;
+		int largestValue = 0;
 		EnumMap<SmeltyMaterial, Integer> amounts = new EnumMap<>(SmeltyMaterial.class);
 		for (var entry : materials.entrySet()) {
 			int amount = (int) Math.round(ratio * entry.getValue());
 			amounts.put(entry.getKey(), amount);
 			roundedTotal += amount;
-			if (amount > largestAmount) {
-				largestAmount = amount;
+			// Track material with largest actual value (best target for adjustment)
+			if (largestMat == null || entry.getValue() > largestValue) {
+				largestValue = entry.getValue();
 				largestMat = entry.getKey();
 			}
 		}
 		if (roundedTotal != amountMl && largestMat != null) {
-			amounts.put(largestMat, amounts.get(largestMat) + (amountMl - roundedTotal));
+			int adjusted = amounts.get(largestMat) + (amountMl - roundedTotal);
+			amounts.put(largestMat, Math.max(0, adjusted));
 		}
 		for (var entry : amounts.entrySet()) {
 			if (entry.getValue() > 0) {
@@ -173,19 +185,21 @@ public class AlloyComposition {
 		}
 		int roundedTotal = 0;
 		SmeltyMaterial largestMat = null;
-		int largestAmount = 0;
+		int largestValue = 0;
 		EnumMap<SmeltyMaterial, Integer> amounts = new EnumMap<>(SmeltyMaterial.class);
 		for (var entry : materials.entrySet()) {
 			int amount = (int) Math.round((double) entry.getValue() / total * targetTotal);
 			amounts.put(entry.getKey(), amount);
 			roundedTotal += amount;
-			if (amount > largestAmount) {
-				largestAmount = amount;
+			// Track material with largest actual value (best target for adjustment)
+			if (largestMat == null || entry.getValue() > largestValue) {
+				largestValue = entry.getValue();
 				largestMat = entry.getKey();
 			}
 		}
 		if (roundedTotal != targetTotal && largestMat != null) {
-			amounts.put(largestMat, amounts.get(largestMat) + (targetTotal - roundedTotal));
+			int adjusted = amounts.get(largestMat) + (targetTotal - roundedTotal);
+			amounts.put(largestMat, Math.max(0, adjusted));
 		}
 		for (var entry : amounts.entrySet()) {
 			if (entry.getValue() > 0) {
@@ -261,13 +275,15 @@ public class AlloyComposition {
 
 	/**
 	 * Convert to a list of float percentages (one per SmeltyMaterial in enum order).
+	 * Uses integer normalization to ensure identical ratios always produce identical floats,
+	 * preventing stacking issues from floating-point precision drift.
 	 */
 	public java.util.List<Float> toPercentages() {
-		int total = getTotalVolumeMl();
+		AlloyComposition normalized = toNormalized(RATIO_BASE);
 		java.util.List<Float> result = new java.util.ArrayList<>();
 		for (SmeltyMaterial mat : SmeltyMaterial.values()) {
-			int vol = materials.getOrDefault(mat, 0);
-			result.add(total > 0 ? (float) vol * 100f / total : 0f);
+			int vol = normalized.getMaterials().getOrDefault(mat, 0);
+			result.add((float) vol);
 		}
 		return result;
 	}

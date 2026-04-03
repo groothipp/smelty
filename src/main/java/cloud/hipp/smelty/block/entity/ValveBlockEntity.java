@@ -72,11 +72,12 @@ public class ValveBlockEntity extends BlockEntity {
 		if (accepted <= 0) return 0;
 
 		AlloyComposition portion = source.drainAndReturn(accepted);
+		int actualVolume = portion.getTotalVolumeMl();
 		fluidComposition.mergeFrom(portion);
-		fluidLevel += accepted;
+		fluidLevel += actualVolume;
 		needsSync = true;
 		markDirty();
-		return accepted;
+		return actualVolume;
 	}
 
 	public void serverTick(ServerWorld world) {
@@ -186,11 +187,15 @@ public class ValveBlockEntity extends BlockEntity {
 		int pushAmount = Math.min(budget, fluidLevel);
 		if (pushAmount <= 0) return 0;
 
-		AlloyComposition offer = fluidComposition.createSnapshot(pushAmount);
-		int accepted = target.addFluid(offer, pushAmount);
-		if (accepted > 0) {
-			fluidComposition.drain(accepted);
-			fluidLevel -= accepted;
+		AlloyComposition portion = fluidComposition.drainAndReturn(pushAmount);
+		int accepted = target.addFluid(portion, pushAmount);
+		// Return unaccepted fluid
+		if (portion.getTotalVolumeMl() > 0) {
+			fluidComposition.mergeFrom(portion);
+		}
+		int drained = pushAmount - portion.getTotalVolumeMl();
+		if (drained > 0) {
+			fluidLevel -= drained;
 			if (fluidLevel <= 0) {
 				fluidLevel = 0;
 				fluidComposition.clear();
@@ -205,11 +210,14 @@ public class ValveBlockEntity extends BlockEntity {
 		int pushAmount = Math.min(budget, fluidLevel);
 		if (pushAmount <= 0) return 0;
 
-		AlloyComposition offer = fluidComposition.createSnapshot(pushAmount);
-		int accepted = basin.addFluid(offer, pushAmount);
-		if (accepted > 0) {
-			fluidComposition.drain(accepted);
-			fluidLevel -= accepted;
+		AlloyComposition portion = fluidComposition.drainAndReturn(pushAmount);
+		int accepted = basin.addFluid(portion, pushAmount);
+		if (portion.getTotalVolumeMl() > 0) {
+			fluidComposition.mergeFrom(portion);
+		}
+		int drained = pushAmount - portion.getTotalVolumeMl();
+		if (drained > 0) {
+			fluidLevel -= drained;
 			if (fluidLevel <= 0) {
 				fluidLevel = 0;
 				fluidComposition.clear();
@@ -224,11 +232,14 @@ public class ValveBlockEntity extends BlockEntity {
 		int pushAmount = Math.min(budget, fluidLevel);
 		if (pushAmount <= 0) return 0;
 
-		AlloyComposition offer = fluidComposition.createSnapshot(pushAmount);
-		int accepted = table.addFluid(offer, pushAmount);
-		if (accepted > 0) {
-			fluidComposition.drain(accepted);
-			fluidLevel -= accepted;
+		AlloyComposition portion = fluidComposition.drainAndReturn(pushAmount);
+		int accepted = table.addFluid(portion, pushAmount);
+		if (portion.getTotalVolumeMl() > 0) {
+			fluidComposition.mergeFrom(portion);
+		}
+		int drained = pushAmount - portion.getTotalVolumeMl();
+		if (drained > 0) {
+			fluidLevel -= drained;
 			if (fluidLevel <= 0) {
 				fluidLevel = 0;
 				fluidComposition.clear();

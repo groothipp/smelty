@@ -17,6 +17,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.Items;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DamageType;
 import net.minecraft.entity.ItemEntity;
@@ -180,6 +181,8 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 
 				if (entry.rawOre() && serverWorld.getRandom().nextFloat() < 0.1f) {
 					volumePerItem *= 2;
+				} else if (stack.isOf(Items.DIAMOND) && serverWorld.getRandom().nextFloat() < 0.3f) {
+					volumePerItem *= 2;
 				}
 
 				if (currentVolume + volumePerItem > maxVolume) break;
@@ -287,13 +290,18 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 			if (moltenAlloy.isEmpty()) break;
 			if (valve.isFull()) continue;
 
-			int pushAmount = Math.min(VALVE_FLOW_RATE_PER_TICK, moltenAlloy.getTotalVolumeMl());
+			int available = moltenAlloy.getTotalVolumeMl();
+			int pushAmount = Math.min(VALVE_FLOW_RATE_PER_TICK, available);
 			if (pushAmount <= 0) continue;
 
-			AlloyComposition offer = moltenAlloy.createSnapshot(pushAmount);
-			int accepted = valve.addFluid(offer, pushAmount);
+			// Drain from smelter first, then offer to valve.
+			// Return any unaccepted fluid to avoid create-snapshot/drain divergence.
+			AlloyComposition portion = moltenAlloy.drainAndReturn(pushAmount);
+			int accepted = valve.addFluid(portion, pushAmount);
+			if (portion.getTotalVolumeMl() > 0) {
+				moltenAlloy.mergeFrom(portion);
+			}
 			if (accepted > 0) {
-				moltenAlloy.drain(accepted);
 				updateCurrentVolume();
 				updateCachedColor();
 				markDirty();

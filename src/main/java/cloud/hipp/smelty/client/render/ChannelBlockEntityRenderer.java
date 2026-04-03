@@ -76,6 +76,7 @@ public class ChannelBlockEntityRenderer
 		// Compute waterfall depth by checking blocks below
 		// Render waterfall when channel has fluid OR is actively flowing downward
 		state.waterfallDepth = 0;
+		state.targetSurfaceY = 4f / 16f; // default: channel trough bottom
 		state.activeDownwardFlow = entity.isActiveDownwardFlow();
 		state.flowColor = entity.getFlowColor();
 		if (entity.getFluidLevelMl() > 0 || entity.isActiveDownwardFlow()) {
@@ -83,8 +84,17 @@ public class ChannelBlockEntityRenderer
 				for (int dy = 1; dy <= 3; dy++) {
 					BlockPos below = pos.down(dy);
 					Block block = world.getBlockState(below).getBlock();
-					if (block instanceof ChannelBlock || block instanceof CastingBasinBlock || block instanceof CastingTableBlock) {
+					if (block instanceof ChannelBlock) {
 						state.waterfallDepth = dy;
+						state.targetSurfaceY = 4f / 16f; // channel trough bottom
+						break;
+					} else if (block instanceof CastingBasinBlock) {
+						state.waterfallDepth = dy;
+						state.targetSurfaceY = 4f / 16f; // basin floor
+						break;
+					} else if (block instanceof CastingTableBlock) {
+						state.waterfallDepth = dy;
+						state.targetSurfaceY = 11f / 16f; // table surface
 						break;
 					}
 					if (!world.getBlockState(below).isAir()) break;
@@ -179,7 +189,7 @@ public class ChannelBlockEntityRenderer
 				float sx1 = 6f / 16f, sx2 = 10f / 16f;
 				float sz1 = 6f / 16f, sz2 = 10f / 16f;
 				float sy2 = OVERLAP; // top: slightly above channel bottom
-				float sy1 = -state.waterfallDepth + 4f / 16f - OVERLAP; // bottom: into target trough
+				float sy1 = -state.waterfallDepth + state.targetSurfaceY - OVERLAP; // bottom: target block surface
 
 				renderStreamDoubleSided(vc, matrix, sx1, sy1, sz1, sx2, sy2, sz2, waterfallColor, light, v0, v1);
 			}
@@ -287,6 +297,7 @@ public class ChannelBlockEntityRenderer
 		public float neighborFillNorth = -1f, neighborFillSouth = -1f;
 		public float neighborFillEast = -1f, neighborFillWest = -1f;
 		public int waterfallDepth; // 0 = none, 1-3 = blocks to target
+		public float targetSurfaceY; // target block's fluid surface Y (in block-local coords)
 		public boolean activeDownwardFlow;
 		public int flowColor;
 		public float animationTime;

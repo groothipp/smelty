@@ -27,6 +27,16 @@
   "item.smelty.ingot_mold": "Ingot Mold",
   "item.smelty.nugget_mold": "Nugget Mold",
   "item.smelty.rod_mold": "Rod Mold",
+  "item.smelty.alloy_sword": "Alloy Sword",
+  "item.smelty.alloy_pickaxe": "Alloy Pickaxe",
+  "item.smelty.alloy_axe": "Alloy Axe",
+  "item.smelty.alloy_shovel": "Alloy Shovel",
+  "item.smelty.alloy_hoe": "Alloy Hoe",
+  "item.smelty.alloy_spear": "Alloy Spear",
+  "item.smelty.alloy_helmet": "Alloy Helmet",
+  "item.smelty.alloy_chestplate": "Alloy Chestplate",
+  "item.smelty.alloy_leggings": "Alloy Leggings",
+  "item.smelty.alloy_boots": "Alloy Boots",
   "death.attack.molten_alloy": "%1$s tried to swim in molten alloy",
   "death.attack.molten_alloy.player": "%1$s tried to swim in molten alloy to escape %2$s"
 }

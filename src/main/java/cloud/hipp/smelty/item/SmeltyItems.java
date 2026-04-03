@@ -3,10 +3,16 @@ package cloud.hipp.smelty.item;
 import cloud.hipp.smelty.Smelty;
 import cloud.hipp.smelty.block.SmeltyBlocks;
 import cloud.hipp.smelty.material.SmeltyMaterial;
+import cloud.hipp.smelty.tool.AlloyArmorItem;
+import cloud.hipp.smelty.tool.AlloyAxeItem;
+import cloud.hipp.smelty.tool.AlloyHoeItem;
+import cloud.hipp.smelty.tool.AlloyShovelItem;
+import cloud.hipp.smelty.tool.AlloyToolItem;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroups;
 import net.minecraft.item.Items;
+import net.minecraft.item.ToolMaterial;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
@@ -57,6 +63,20 @@ public class SmeltyItems {
 	public static final Item ALLOY_INGOT = registerAlloy("alloy_ingot", "Ingot");
 	public static final Item ALLOY_NUGGET = registerAlloy("alloy_nugget", "Nugget");
 	public static final Item ALLOY_ROD = registerAlloy("alloy_rod", "Rod");
+
+	// Tools
+	public static final Item ALLOY_SWORD = registerTool("alloy_sword", "Sword");
+	public static final Item ALLOY_PICKAXE = registerTool("alloy_pickaxe", "Pickaxe");
+	public static final Item ALLOY_AXE = registerAxe("alloy_axe");
+	public static final Item ALLOY_SHOVEL = registerShovel("alloy_shovel");
+	public static final Item ALLOY_HOE = registerHoe("alloy_hoe");
+	public static final Item ALLOY_SPEAR = registerTool("alloy_spear", "Spear");
+
+	// Armor
+	public static final Item ALLOY_HELMET = registerArmor("alloy_helmet", "Helmet");
+	public static final Item ALLOY_CHESTPLATE = registerArmor("alloy_chestplate", "Chestplate");
+	public static final Item ALLOY_LEGGINGS = registerArmor("alloy_leggings", "Leggings");
+	public static final Item ALLOY_BOOTS = registerArmor("alloy_boots", "Boots");
 
 	private static final EnumMap<SmeltyMaterial, Item> PLATE_MAP = new EnumMap<>(SmeltyMaterial.class);
 	private static final EnumMap<SmeltyMaterial, Item> CAST_INGOT_MAP = new EnumMap<>(SmeltyMaterial.class);
@@ -114,6 +134,37 @@ public class SmeltyItems {
 		return Registry.register(Registries.ITEM, key, new AlloyItem(new Item.Settings().registryKey(key), suffix));
 	}
 
+	private static Item registerTool(String id, String toolTypeName) {
+		RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, id));
+		Item.Settings settings = new Item.Settings().registryKey(key)
+				.sword(ToolMaterial.IRON, 3.0f, -2.4f);
+		return Registry.register(Registries.ITEM, key, new AlloyToolItem(settings, toolTypeName));
+	}
+
+	private static Item registerAxe(String id) {
+		RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, id));
+		return Registry.register(Registries.ITEM, key,
+				new AlloyAxeItem(ToolMaterial.IRON, 6.0f, -3.1f, new Item.Settings().registryKey(key)));
+	}
+
+	private static Item registerShovel(String id) {
+		RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, id));
+		return Registry.register(Registries.ITEM, key,
+				new AlloyShovelItem(ToolMaterial.IRON, 1.5f, -3.0f, new Item.Settings().registryKey(key)));
+	}
+
+	private static Item registerHoe(String id) {
+		RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, id));
+		return Registry.register(Registries.ITEM, key,
+				new AlloyHoeItem(ToolMaterial.IRON, -2.0f, -1.0f, new Item.Settings().registryKey(key)));
+	}
+
+	private static Item registerArmor(String id, String armorTypeName) {
+		RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, id));
+		Item.Settings settings = new Item.Settings().registryKey(key).maxDamage(1);
+		return Registry.register(Registries.ITEM, key, new AlloyArmorItem(settings, armorTypeName));
+	}
+
 	public static void initialize() {
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register(entries -> {
 			entries.add(SMELTER_BLOCK);
@@ -146,6 +197,20 @@ public class SmeltyItems {
 			entries.add(INGOT_MOLD);
 			entries.add(NUGGET_MOLD);
 			entries.add(ROD_MOLD);
+		});
+		ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> {
+			entries.add(ALLOY_SWORD);
+			entries.add(ALLOY_AXE);
+			entries.add(ALLOY_SPEAR);
+			entries.add(ALLOY_HELMET);
+			entries.add(ALLOY_CHESTPLATE);
+			entries.add(ALLOY_LEGGINGS);
+			entries.add(ALLOY_BOOTS);
+		});
+		ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries -> {
+			entries.add(ALLOY_PICKAXE);
+			entries.add(ALLOY_SHOVEL);
+			entries.add(ALLOY_HOE);
 		});
 	}
 }

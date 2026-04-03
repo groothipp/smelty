@@ -1,6 +1,12 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "smelty:item/diamond_nugget"
+    "model": "smelty:item/diamond_nugget",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": 4910553
+      }
+    ]
   }
 }

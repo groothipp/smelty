@@ -1,5 +1,6 @@
 package cloud.hipp.smelty.material;
 
+import cloud.hipp.smelty.item.SmeltyItems;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -53,11 +54,18 @@ public class MaterialItems {
 		INGOT_MAP.put(SmeltyMaterial.DIAMOND, Items.DIAMOND);
 		BLOCK_MAP.put(SmeltyMaterial.DIAMOND, Items.DIAMOND_BLOCK);
 
+		// Diamond cast items (smelty-specific)
+		register(SmeltyItems.DIAMOND_INGOT, SmeltyMaterial.DIAMOND, INGOT_VOLUME, false);
+		register(SmeltyItems.DIAMOND_NUGGET, SmeltyMaterial.DIAMOND, NUGGET_VOLUME, false);
+		NUGGET_MAP.put(SmeltyMaterial.DIAMOND, SmeltyItems.DIAMOND_NUGGET);
+
 		// Netherite
 		register(Items.NETHERITE_INGOT, SmeltyMaterial.NETHERITE, INGOT_VOLUME, false);
 		register(Items.NETHERITE_BLOCK, SmeltyMaterial.NETHERITE, BLOCK_VOLUME, false);
+		register(SmeltyItems.NETHERITE_NUGGET, SmeltyMaterial.NETHERITE, NUGGET_VOLUME, false);
 		INGOT_MAP.put(SmeltyMaterial.NETHERITE, Items.NETHERITE_INGOT);
 		BLOCK_MAP.put(SmeltyMaterial.NETHERITE, Items.NETHERITE_BLOCK);
+		NUGGET_MAP.put(SmeltyMaterial.NETHERITE, SmeltyItems.NETHERITE_NUGGET);
 	}
 
 	private static void register(Item item, SmeltyMaterial material, int volumeMl, boolean rawOre) {

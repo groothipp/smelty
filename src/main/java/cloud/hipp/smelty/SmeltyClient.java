@@ -69,5 +69,6 @@ public class SmeltyClient implements ClientModInitializer {
 			}
 			return 0x808080;
 		}, SmeltyBlocks.SOLID_ALLOY);
+
 	}
 }

@@ -7,9 +7,12 @@ import cloud.hipp.smelty.network.RenameAlloyPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.Map;
 
@@ -20,7 +23,9 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 	private static final int LABEL_WIDTH = 50;
 
 	private TextFieldWidget nameField;
+	private ButtonWidget saveButton;
 	private String lastSentName;
+	private boolean nameSaved;
 
 	public AnalysisBenchScreen(AnalysisBenchScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title);
@@ -35,27 +40,55 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 
 		if (data.isRenameable()) {
 			lastSentName = data.materialName();
-			nameField = new TextFieldWidget(textRenderer, x + 10, y + 8, backgroundWidth - 20, 14, Text.literal("Alloy Name"));
+			nameField = new TextFieldWidget(textRenderer, x + 10, y + 8, backgroundWidth - 56, 14, Text.literal("Alloy Name"));
 			nameField.setMaxLength(32);
-			nameField.setText(data.materialName());
-			nameField.setChangedListener(this::onNameChanged);
+			nameField.setText("");
+			nameField.setPlaceholder(Text.literal("Name this alloy...").styled(s -> s.withColor(0x888888)));
 			addDrawableChild(nameField);
+
+			saveButton = ButtonWidget.builder(Text.literal("Save"), button -> confirmName())
+					.dimensions(x + backgroundWidth - 42, y + 7, 32, 16)
+					.build();
+			addDrawableChild(saveButton);
 		}
 	}
 
-	private void onNameChanged(String newName) {
-		// Will send on close
+	private void confirmName() {
+		if (nameField == null || nameSaved) return;
+		String name = nameField.getText().trim();
+		if (!name.isEmpty()) {
+			AnalysisBenchData data = handler.getData();
+			ClientPlayNetworking.send(new RenameAlloyPayload(data.benchPos(), name));
+			lastSentName = name;
+			nameSaved = true;
+			nameField.setEditable(false);
+			nameField.setFocused(false);
+			if (saveButton != null) saveButton.active = false;
+		}
+	}
+
+	@Override
+	public boolean keyPressed(KeyInput keyInput) {
+		if (nameField != null && nameField.isFocused()) {
+			int keyCode = keyInput.key();
+			if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+				confirmName();
+				return true;
+			}
+			if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+				return super.keyPressed(keyInput);
+			}
+			// Let the text field handle the key, but consume it to prevent
+			// chat/inventory shortcuts from firing
+			nameField.keyPressed(keyInput);
+			return true;
+		}
+		return super.keyPressed(keyInput);
 	}
 
 	@Override
 	public void close() {
-		AnalysisBenchData data = handler.getData();
-		if (data.isRenameable() && nameField != null) {
-			String name = nameField.getText().trim();
-			if (!name.isEmpty() && !name.equals(lastSentName)) {
-				ClientPlayNetworking.send(new RenameAlloyPayload(data.benchPos(), name));
-			}
-		}
+		// Name is only saved via explicit confirm (Enter or Save button)
 		super.close();
 	}
 

@@ -63,10 +63,16 @@ public class SolidAlloyBlock extends BlockWithEntity {
 			stack.set(DataComponentTypes.BLOCK_ENTITY_DATA,
 					TypedEntityData.create(SmeltyBlockEntities.SOLID_ALLOY,
 							tempBe.createNbt(world.getRegistryManager())));
+			cloud.hipp.smelty.material.AlloyComposition normalizedComp =
+					solidBe.getComposition().toNormalized(cloud.hipp.smelty.material.AlloyComposition.ITEM_RATIO_BASE);
+			java.util.List<Float> percentages = new java.util.ArrayList<>();
+			for (cloud.hipp.smelty.material.SmeltyMaterial mat : cloud.hipp.smelty.material.SmeltyMaterial.values()) {
+				percentages.add((float) normalizedComp.getMaterials().getOrDefault(mat, 0));
+			}
 			stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 					new CustomModelDataComponent(
-							java.util.List.of(), java.util.List.of(), java.util.List.of(),
-							java.util.List.of(tempBe.getColor())));
+							percentages, java.util.List.of(), java.util.List.of(),
+							java.util.List.of(normalizedComp.getBlendedColor())));
 			AlloyRegistry registry = AlloyRegistry.get(world);
 			String alloyName = registry.getAlloyName(solidBe.getComposition());
 			if (alloyName != null) {

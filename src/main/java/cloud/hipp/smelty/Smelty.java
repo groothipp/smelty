@@ -10,6 +10,8 @@ import cloud.hipp.smelty.network.RenameAlloyPayload;
 import cloud.hipp.smelty.network.SyncAlloyRegistryPayload;
 import cloud.hipp.smelty.network.SyncSmelterDataPayload;
 import cloud.hipp.smelty.screen.SmeltyScreenHandlers;
+import cloud.hipp.smelty.tool.SmeltyArmorRecipeSerializer;
+import cloud.hipp.smelty.tool.SmeltyToolRecipeSerializer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -30,6 +32,8 @@ public class Smelty implements ModInitializer {
 		SmeltyBlockEntities.initialize();
 		SmeltyItems.initialize();
 		SmeltyScreenHandlers.initialize();
+		SmeltyToolRecipeSerializer.initialize();
+		SmeltyArmorRecipeSerializer.initialize();
 		registerNetworking();
 		LOGGER.info("Smelty initialized!");
 	}
