@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "smelty:smelter_block",
+    "smelty:smelter_controller",
+    "smelty:valve",
+    "smelty:channel",
+    "smelty:casting_basin",
+    "smelty:casting_table",
+    "smelty:solid_alloy"
+  ]
+}
