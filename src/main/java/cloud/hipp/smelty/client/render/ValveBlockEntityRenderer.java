@@ -8,7 +8,6 @@ import cloud.hipp.smelty.block.entity.ValveBlockEntity;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.RenderLayers;
-import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 import net.minecraft.client.render.block.entity.state.BlockEntityRenderState;
@@ -44,9 +43,6 @@ public class ValveBlockEntityRenderer
 			Vec3d cameraPos, ModelCommandRenderer.CrumblingOverlayCommand crumbling) {
 		BlockEntityRenderState.updateBlockEntityRenderState(entity, state, crumbling);
 
-		state.fluidLevel = entity.getFluidLevelMl();
-		state.color = entity.getColor();
-
 		BlockState blockState = entity.getCachedState();
 		if (blockState.getBlock() instanceof ValveBlock) {
 			state.facing = blockState.get(ValveBlock.FACING);
@@ -54,11 +50,11 @@ public class ValveBlockEntityRenderer
 			state.facing = Direction.NORTH;
 		}
 
-		// Compute waterfall depth — render when valve has fluid OR is actively flowing down
+		// Compute waterfall depth when actively flowing down
 		state.waterfallDepth = 0;
 		state.activeDownwardFlow = entity.isActiveDownwardFlow();
 		state.flowColor = entity.getFlowColor();
-		if (entity.getFluidLevelMl() > 0 || entity.isActiveDownwardFlow()) {
+		if (entity.isActiveDownwardFlow()) {
 			World world = entity.getWorld();
 			if (world != null) {
 				BlockPos pos = entity.getPos();
@@ -107,9 +103,7 @@ public class ValveBlockEntityRenderer
 			y1 = 0; // bottom: block floor
 		}
 
-		// Use flowColor when valve is empty but actively flowing
-		int baseColor = state.fluidLevel > 0 ? state.color : state.flowColor;
-		int color = baseColor | 0xFF000000;
+		int color = state.flowColor | 0xFF000000;
 
 		var renderLayer = RenderLayers.entitySolid(FLUID_TEXTURE);
 		matrices.push();
@@ -194,8 +188,6 @@ public class ValveBlockEntityRenderer
 	}
 
 	public static class RenderState extends BlockEntityRenderState {
-		public int fluidLevel;
-		public int color;
 		public Direction facing = Direction.NORTH;
 		public int waterfallDepth; // 0 = none, 1-3 = blocks to target
 		public boolean activeDownwardFlow;

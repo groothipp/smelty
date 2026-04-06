@@ -2,7 +2,6 @@ package cloud.hipp.smelty.block.entity;
 
 import cloud.hipp.smelty.block.ValveBlock;
 import cloud.hipp.smelty.material.AlloyComposition;
-import cloud.hipp.smelty.material.MaterialItems;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
@@ -18,41 +17,14 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 public class ValveBlockEntity extends BlockEntity {
-	public static final int MAX_CAPACITY = MaterialItems.UNITS_PER_INGOT * 4; // 4 ingots
 	private static final int FLOW_RATE_PER_TICK = 81; // 9 ingots/sec at 20 tps
 
-	private final AlloyComposition fluidComposition = new AlloyComposition();
-	private int fluidLevel;
 	private boolean needsSync;
 	private boolean activeDownwardFlow;
 	private int flowColor;
 
 	public ValveBlockEntity(BlockPos pos, BlockState state) {
 		super(SmeltyBlockEntities.VALVE, pos, state);
-	}
-
-	public int getFluidLevelMl() {
-		return fluidLevel;
-	}
-
-	public int getColor() {
-		return fluidComposition.getBlendedColor();
-	}
-
-	public AlloyComposition getFluidComposition() {
-		return fluidComposition;
-	}
-
-	public float getFillRatio() {
-		return (float) fluidLevel / MAX_CAPACITY;
-	}
-
-	public boolean isFull() {
-		return fluidLevel >= MAX_CAPACITY;
-	}
-
-	public boolean isEmpty() {
-		return fluidLevel <= 0;
 	}
 
 	public boolean isActiveDownwardFlow() {
@@ -64,69 +36,41 @@ public class ValveBlockEntity extends BlockEntity {
 	}
 
 	/**
-	 * Add fluid from smelter controller. Returns amount accepted.
+	 * Push fluid from the smelter through this valve to downstream targets.
+	 * The valve stores nothing — it drains directly from the source and pushes
+	 * into channels, basins, or casting tables below/around it.
+	 * Returns the total amount of fluid pushed through.
 	 */
-	public int addFluid(AlloyComposition source, int amount) {
-		int space = MAX_CAPACITY - fluidLevel;
-		int accepted = Math.min(amount, space);
-		if (accepted <= 0) return 0;
-
-		AlloyComposition portion = source.drainAndReturn(accepted);
-		int actualVolume = portion.getTotalVolumeMl();
-		fluidComposition.mergeFrom(portion);
-		fluidLevel += actualVolume;
-		needsSync = true;
-		markDirty();
-		return actualVolume;
-	}
-
-	public void serverTick(ServerWorld world) {
-		if (fluidLevel <= 0 && !activeDownwardFlow) {
-			if (needsSync) {
-				world.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
-				needsSync = false;
-			}
-			return;
-		}
-
+	public int pushFluidThrough(AlloyComposition source, int amount) {
 		BlockState state = getCachedState();
-		if (!(state.getBlock() instanceof ValveBlock)) return;
+		if (!(state.getBlock() instanceof ValveBlock)) return 0;
+		if (!state.get(ValveBlock.OPEN)) return 0;
 
-		// Valve closed — stop all flow
-		if (!state.get(ValveBlock.OPEN)) {
-			if (activeDownwardFlow) {
-				activeDownwardFlow = false;
-				needsSync = true;
-			}
-			if (needsSync) {
-				world.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
-				needsSync = false;
-			}
-			return;
-		}
+		if (world == null || world.isClient()) return 0;
 
-		Direction facing = state.get(ValveBlock.FACING);
-		int remaining = Math.min(FLOW_RATE_PER_TICK, fluidLevel);
+		int budget = Math.min(FLOW_RATE_PER_TICK, amount);
+		int totalPushed = 0;
 		boolean pushedDown = false;
-		int colorBeforePush = fluidComposition.getBlendedColor(); // capture color before fluid is drained
+		int colorBeforePush = source.getBlendedColor();
 
 		// Waterfall: check up to 3 blocks below for channels, basins, or tables
-		for (int dy = 1; dy <= 3 && remaining > 0; dy++) {
+		for (int dy = 1; dy <= 3 && budget - totalPushed > 0; dy++) {
 			BlockPos below = pos.down(dy);
 			BlockEntity belowBe = world.getBlockEntity(below);
+			int remaining = budget - totalPushed;
 			if (belowBe instanceof ChannelBlockEntity channel && !channel.isFull()) {
-				int pushed = pushFluidTo(channel, remaining);
-				remaining -= pushed;
+				int pushed = channel.addFluid(source, remaining);
+				totalPushed += pushed;
 				if (pushed > 0) pushedDown = true;
 				break;
 			} else if (belowBe instanceof CastingBasinBlockEntity basin && !basin.isFull() && !basin.isSolidified()) {
-				int pushed = pushFluidToCasting(basin, remaining);
-				remaining -= pushed;
+				int pushed = basin.addFluid(source, remaining);
+				totalPushed += pushed;
 				if (pushed > 0) pushedDown = true;
 				break;
 			} else if (belowBe instanceof CastingTableBlockEntity table && !table.isFull() && !table.isSolidified()) {
-				int pushed = pushFluidToCasting(table, remaining);
-				remaining -= pushed;
+				int pushed = table.addFluid(source, remaining);
+				totalPushed += pushed;
 				if (pushed > 0) pushedDown = true;
 				break;
 			} else if (belowBe != null) {
@@ -135,26 +79,29 @@ public class ValveBlockEntity extends BlockEntity {
 		}
 
 		// Push to connected blocks on the 3 open sides (not the back/wall side)
-		// Prioritize casting blocks over channels
+		Direction facing = state.get(ValveBlock.FACING);
 		Direction[] openSides = getOpenSides(facing);
 
+		// Prioritize casting blocks over channels
 		for (Direction dir : openSides) {
-			if (remaining <= 0) break;
+			if (budget - totalPushed <= 0) break;
+			int remaining = budget - totalPushed;
 			BlockPos neighborPos = pos.offset(dir);
 			BlockEntity neighborBe = world.getBlockEntity(neighborPos);
 			if (neighborBe instanceof CastingBasinBlockEntity basin && !basin.isFull() && !basin.isSolidified()) {
-				remaining -= pushFluidToCasting(basin, remaining);
+				totalPushed += basin.addFluid(source, remaining);
 			} else if (neighborBe instanceof CastingTableBlockEntity table && !table.isFull() && !table.isSolidified()) {
-				remaining -= pushFluidToCasting(table, remaining);
+				totalPushed += table.addFluid(source, remaining);
 			}
 		}
 
 		for (Direction dir : openSides) {
-			if (remaining <= 0) break;
+			if (budget - totalPushed <= 0) break;
+			int remaining = budget - totalPushed;
 			BlockPos neighborPos = pos.offset(dir);
 			BlockEntity neighborBe = world.getBlockEntity(neighborPos);
 			if (neighborBe instanceof ChannelBlockEntity channel && !channel.isFull()) {
-				remaining -= pushFluidTo(channel, remaining);
+				totalPushed += channel.addFluid(source, remaining);
 			}
 		}
 
@@ -174,6 +121,29 @@ public class ValveBlockEntity extends BlockEntity {
 			world.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
 			needsSync = false;
 		}
+
+		return totalPushed;
+	}
+
+	public void serverTick(ServerWorld world) {
+		// The valve no longer stores fluid, so the only thing to do on tick
+		// is clear the downward flow state if no fluid was pushed this tick.
+		// Flow state is managed by pushFluidThrough() called from the controller.
+		if (needsSync) {
+			world.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_LISTENERS);
+			needsSync = false;
+		}
+	}
+
+	/**
+	 * Called each tick by the controller when the valve is NOT being fed fluid,
+	 * so the waterfall rendering can stop.
+	 */
+	public void clearFlow() {
+		if (activeDownwardFlow) {
+			activeDownwardFlow = false;
+			needsSync = true;
+		}
 	}
 
 	private Direction[] getOpenSides(Direction facing) {
@@ -181,73 +151,6 @@ public class ValveBlockEntity extends BlockEntity {
 		return java.util.Arrays.stream(Direction.values())
 				.filter(d -> d.getAxis() != Direction.Axis.Y && d != back)
 				.toArray(Direction[]::new);
-	}
-
-	private int pushFluidTo(ChannelBlockEntity target, int budget) {
-		int pushAmount = Math.min(budget, fluidLevel);
-		if (pushAmount <= 0) return 0;
-
-		AlloyComposition portion = fluidComposition.drainAndReturn(pushAmount);
-		int accepted = target.addFluid(portion, pushAmount);
-		// Return unaccepted fluid
-		if (portion.getTotalVolumeMl() > 0) {
-			fluidComposition.mergeFrom(portion);
-		}
-		int drained = pushAmount - portion.getTotalVolumeMl();
-		if (drained > 0) {
-			fluidLevel -= drained;
-			if (fluidLevel <= 0) {
-				fluidLevel = 0;
-				fluidComposition.clear();
-			}
-			needsSync = true;
-			markDirty();
-		}
-		return accepted;
-	}
-
-	private int pushFluidToCasting(CastingBasinBlockEntity basin, int budget) {
-		int pushAmount = Math.min(budget, fluidLevel);
-		if (pushAmount <= 0) return 0;
-
-		AlloyComposition portion = fluidComposition.drainAndReturn(pushAmount);
-		int accepted = basin.addFluid(portion, pushAmount);
-		if (portion.getTotalVolumeMl() > 0) {
-			fluidComposition.mergeFrom(portion);
-		}
-		int drained = pushAmount - portion.getTotalVolumeMl();
-		if (drained > 0) {
-			fluidLevel -= drained;
-			if (fluidLevel <= 0) {
-				fluidLevel = 0;
-				fluidComposition.clear();
-			}
-			needsSync = true;
-			markDirty();
-		}
-		return accepted;
-	}
-
-	private int pushFluidToCasting(CastingTableBlockEntity table, int budget) {
-		int pushAmount = Math.min(budget, fluidLevel);
-		if (pushAmount <= 0) return 0;
-
-		AlloyComposition portion = fluidComposition.drainAndReturn(pushAmount);
-		int accepted = table.addFluid(portion, pushAmount);
-		if (portion.getTotalVolumeMl() > 0) {
-			fluidComposition.mergeFrom(portion);
-		}
-		int drained = pushAmount - portion.getTotalVolumeMl();
-		if (drained > 0) {
-			fluidLevel -= drained;
-			if (fluidLevel <= 0) {
-				fluidLevel = 0;
-				fluidComposition.clear();
-			}
-			needsSync = true;
-			markDirty();
-		}
-		return accepted;
 	}
 
 	// --- Network sync ---
@@ -266,16 +169,12 @@ public class ValveBlockEntity extends BlockEntity {
 
 	@Override
 	protected void readData(ReadView view) {
-		fluidComposition.readFromView(view.getListReadView("Composition"));
-		fluidLevel = view.getInt("FluidLevel", 0);
 		activeDownwardFlow = view.getBoolean("ActiveDownwardFlow", false);
 		flowColor = view.getInt("FlowColor", 0);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
-		fluidComposition.writeToView(view.getList("Composition"));
-		view.putInt("FluidLevel", fluidLevel);
 		view.putBoolean("ActiveDownwardFlow", activeDownwardFlow);
 		view.putInt("FlowColor", flowColor);
 	}

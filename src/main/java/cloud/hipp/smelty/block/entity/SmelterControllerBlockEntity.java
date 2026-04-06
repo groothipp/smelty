@@ -283,24 +283,27 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 	private static final int VALVE_FLOW_RATE_PER_TICK = 81; // 9 ingots/sec at 20 tps
 
 	private void manageValveOutput(ServerWorld serverWorld) {
-		if (moltenAlloy.isEmpty()) return;
+		List<ValveBlockEntity> allValves = findOpenValves(serverWorld);
 
-		List<ValveBlockEntity> openValves = findOpenValves(serverWorld);
-		for (ValveBlockEntity valve : openValves) {
-			if (moltenAlloy.isEmpty()) break;
-			if (valve.isFull()) continue;
+		if (moltenAlloy.isEmpty()) {
+			// Clear flow state on all open valves when smelter is empty
+			for (ValveBlockEntity valve : allValves) {
+				valve.clearFlow();
+			}
+			return;
+		}
+
+		for (ValveBlockEntity valve : allValves) {
+			if (moltenAlloy.isEmpty()) {
+				valve.clearFlow();
+				continue;
+			}
 
 			int available = moltenAlloy.getTotalVolumeMl();
 			int pushAmount = Math.min(VALVE_FLOW_RATE_PER_TICK, available);
 			if (pushAmount <= 0) continue;
 
-			// Drain from smelter first, then offer to valve.
-			// Return any unaccepted fluid to avoid create-snapshot/drain divergence.
-			AlloyComposition portion = moltenAlloy.drainAndReturn(pushAmount);
-			int accepted = valve.addFluid(portion, pushAmount);
-			if (portion.getTotalVolumeMl() > 0) {
-				moltenAlloy.mergeFrom(portion);
-			}
+			int accepted = valve.pushFluidThrough(moltenAlloy, pushAmount);
 			if (accepted > 0) {
 				updateCurrentVolume();
 				updateCachedColor();
