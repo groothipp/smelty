@@ -25,7 +25,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: build
-        run: ./gradlew build
+        run: ./gradlew build -Pmod_version=${GITHUB_REF_NAME#v}
 
       - name: create release
         uses: softprops/action-gh-release@v2
