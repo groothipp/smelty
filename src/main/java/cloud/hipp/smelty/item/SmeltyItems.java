@@ -32,6 +32,7 @@ public class SmeltyItems {
 	public static final Item CASTING_TABLE = Items.register(SmeltyBlocks.CASTING_TABLE);
 	public static final Item ANALYSIS_BENCH = Items.register(SmeltyBlocks.ANALYSIS_BENCH);
 	public static final Item CASTED_DIAMOND_BLOCK = Items.register(SmeltyBlocks.CASTED_DIAMOND_BLOCK);
+	public static final Item CASTED_EMERALD_BLOCK = Items.register(SmeltyBlocks.CASTED_EMERALD_BLOCK);
 	public static final Item SOLID_ALLOY = Items.register(SmeltyBlocks.SOLID_ALLOY);
 
 	// Plates (one per material + alloy for mixed compositions)
@@ -40,6 +41,8 @@ public class SmeltyItems {
 	public static final Item GOLD_PLATE = register("gold_plate");
 	public static final Item DIAMOND_PLATE = register("diamond_plate");
 	public static final Item NETHERITE_PLATE = register("netherite_plate");
+	public static final Item OBSIDIAN_PLATE = register("obsidian_plate");
+	public static final Item EMERALD_PLATE = register("emerald_plate");
 	public static final Item ALLOY_PLATE = registerAlloy("alloy_plate", "Plate");
 
 	// Guide book
@@ -50,13 +53,20 @@ public class SmeltyItems {
 	public static final Item NUGGET_MOLD = register("nugget_mold");
 	public static final Item ROD_MOLD = register("rod_mold");
 	public static final Item DIAMOND_MOLD = register("diamond_mold");
+	public static final Item EMERALD_MOLD = register("emerald_mold");
 
-	// Cast diamonds (produced by casting pure diamond through diamond mold)
+	// Cast items (produced by casting pure material through its mold)
 	public static final Item CASTED_DIAMOND = register("casted_diamond");
+	public static final Item CASTED_EMERALD = register("casted_emerald");
 
 	// Cast nuggets (materials without vanilla nuggets)
 	public static final Item DIAMOND_NUGGET = register("diamond_nugget");
 	public static final Item NETHERITE_NUGGET = register("netherite_nugget");
+	public static final Item EMERALD_NUGGET = register("emerald_nugget");
+	public static final Item OBSIDIAN_NUGGET = register("obsidian_nugget");
+
+	// Obsidian ingot (no vanilla equivalent)
+	public static final Item OBSIDIAN_INGOT = register("obsidian_ingot");
 
 	// Rods (all materials)
 	public static final Item COPPER_ROD = register("copper_rod");
@@ -64,6 +74,8 @@ public class SmeltyItems {
 	public static final Item GOLD_ROD = register("gold_rod");
 	public static final Item DIAMOND_ROD = register("diamond_rod");
 	public static final Item NETHERITE_ROD = register("netherite_rod");
+	public static final Item OBSIDIAN_ROD = register("obsidian_rod");
+	public static final Item EMERALD_ROD = register("emerald_rod");
 
 	// Alloy cast outputs (mixed compositions)
 	public static final Item ALLOY_INGOT = registerAlloy("alloy_ingot", "Ingot");
@@ -95,23 +107,31 @@ public class SmeltyItems {
 		PLATE_MAP.put(SmeltyMaterial.GOLD, GOLD_PLATE);
 		PLATE_MAP.put(SmeltyMaterial.DIAMOND, DIAMOND_PLATE);
 		PLATE_MAP.put(SmeltyMaterial.NETHERITE, NETHERITE_PLATE);
+		PLATE_MAP.put(SmeltyMaterial.OBSIDIAN, OBSIDIAN_PLATE);
+		PLATE_MAP.put(SmeltyMaterial.EMERALD, EMERALD_PLATE);
 
 		CAST_INGOT_MAP.put(SmeltyMaterial.COPPER, Items.COPPER_INGOT);
 		CAST_INGOT_MAP.put(SmeltyMaterial.IRON, Items.IRON_INGOT);
 		CAST_INGOT_MAP.put(SmeltyMaterial.GOLD, Items.GOLD_INGOT);
 		CAST_INGOT_MAP.put(SmeltyMaterial.DIAMOND, CASTED_DIAMOND);
 		CAST_INGOT_MAP.put(SmeltyMaterial.NETHERITE, Items.NETHERITE_INGOT);
+		CAST_INGOT_MAP.put(SmeltyMaterial.OBSIDIAN, OBSIDIAN_INGOT);
+		CAST_INGOT_MAP.put(SmeltyMaterial.EMERALD, CASTED_EMERALD);
 
 		CAST_NUGGET_MAP.put(SmeltyMaterial.IRON, Items.IRON_NUGGET);
 		CAST_NUGGET_MAP.put(SmeltyMaterial.GOLD, Items.GOLD_NUGGET);
 		CAST_NUGGET_MAP.put(SmeltyMaterial.DIAMOND, DIAMOND_NUGGET);
 		CAST_NUGGET_MAP.put(SmeltyMaterial.NETHERITE, NETHERITE_NUGGET);
+		CAST_NUGGET_MAP.put(SmeltyMaterial.OBSIDIAN, OBSIDIAN_NUGGET);
+		CAST_NUGGET_MAP.put(SmeltyMaterial.EMERALD, EMERALD_NUGGET);
 
 		ROD_MAP.put(SmeltyMaterial.COPPER, COPPER_ROD);
 		ROD_MAP.put(SmeltyMaterial.IRON, IRON_ROD);
 		ROD_MAP.put(SmeltyMaterial.GOLD, GOLD_ROD);
 		ROD_MAP.put(SmeltyMaterial.DIAMOND, DIAMOND_ROD);
 		ROD_MAP.put(SmeltyMaterial.NETHERITE, NETHERITE_ROD);
+		ROD_MAP.put(SmeltyMaterial.OBSIDIAN, OBSIDIAN_ROD);
+		ROD_MAP.put(SmeltyMaterial.EMERALD, EMERALD_ROD);
 	}
 
 	public static Item getPlateForMaterial(SmeltyMaterial material) {
@@ -191,6 +211,7 @@ public class SmeltyItems {
 			entries.add(CASTING_TABLE);
 			entries.add(ANALYSIS_BENCH);
 			entries.add(CASTED_DIAMOND_BLOCK);
+			entries.add(CASTED_EMERALD_BLOCK);
 			entries.add(SOLID_ALLOY);
 		});
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.INGREDIENTS).register(entries -> {
@@ -199,15 +220,23 @@ public class SmeltyItems {
 			entries.add(GOLD_PLATE);
 			entries.add(DIAMOND_PLATE);
 			entries.add(NETHERITE_PLATE);
+			entries.add(OBSIDIAN_PLATE);
+			entries.add(EMERALD_PLATE);
 			entries.add(ALLOY_PLATE);
 			entries.add(CASTED_DIAMOND);
+			entries.add(CASTED_EMERALD);
 			entries.add(DIAMOND_NUGGET);
 			entries.add(NETHERITE_NUGGET);
+			entries.add(OBSIDIAN_NUGGET);
+			entries.add(EMERALD_NUGGET);
+			entries.add(OBSIDIAN_INGOT);
 			entries.add(COPPER_ROD);
 			entries.add(IRON_ROD);
 			entries.add(GOLD_ROD);
 			entries.add(DIAMOND_ROD);
 			entries.add(NETHERITE_ROD);
+			entries.add(OBSIDIAN_ROD);
+			entries.add(EMERALD_ROD);
 			entries.add(ALLOY_INGOT);
 			entries.add(ALLOY_NUGGET);
 			entries.add(ALLOY_ROD);
@@ -215,6 +244,7 @@ public class SmeltyItems {
 			entries.add(NUGGET_MOLD);
 			entries.add(ROD_MOLD);
 			entries.add(DIAMOND_MOLD);
+			entries.add(EMERALD_MOLD);
 			entries.add(METALLURGY_GUIDE);
 		});
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> {

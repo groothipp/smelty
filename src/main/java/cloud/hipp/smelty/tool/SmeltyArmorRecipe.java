@@ -70,12 +70,11 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 		SmeltyArmorType armorType = result.armorType;
 		AlloyComposition composition = result.composition;
 
-		// Compute stats from composition
-		double[] props = ArmorStatCalculator.getProperties(composition);
-		int defense = ArmorStatCalculator.computeDefense(props, armorType);
-		float armorToughness = ArmorStatCalculator.computeArmorToughness(props);
-		float knockbackResistance = ArmorStatCalculator.computeKnockbackResistance(props);
-		int durability = ArmorStatCalculator.computeDurability(props, armorType);
+		// Compute stats from composition using new formula system
+		int defense = ArmorStatCalculator.computeSlotDefense(composition, armorType);
+		float armorToughness = ArmorStatCalculator.computeArmorToughness(composition);
+		float movementSpeed = ArmorStatCalculator.computeMovementSpeedModifier(composition);
+		int durability = ArmorStatCalculator.computeDurability(composition, armorType);
 
 		// Get output item
 		Item outputItem = getOutputItem(armorType);
@@ -87,8 +86,9 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 		for (SmeltyMaterial mat : SmeltyMaterial.values()) {
 			percentages.add((float) normalizedComp.getMaterials().getOrDefault(mat, 0));
 		}
-		// [5] = defense value for tooltip
+		// [7] = defense value for tooltip, [8] = tier
 		percentages.add((float) defense);
+		percentages.add((float) composition.getTier());
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
 						percentages, List.of(), List.of(),
@@ -113,10 +113,10 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 				new EntityAttributeModifier(armorType.getModifierId(),
 						armorToughness, EntityAttributeModifier.Operation.ADD_VALUE),
 				armorType.getAttributeSlot());
-		if (knockbackResistance > 0) {
-			attrBuilder.add(EntityAttributes.KNOCKBACK_RESISTANCE,
+		if (movementSpeed != 0) {
+			attrBuilder.add(EntityAttributes.MOVEMENT_SPEED,
 					new EntityAttributeModifier(armorType.getModifierId(),
-							knockbackResistance, EntityAttributeModifier.Operation.ADD_VALUE),
+							movementSpeed, EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE),
 					armorType.getAttributeSlot());
 		}
 		stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS, attrBuilder.build());
@@ -189,6 +189,8 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 				|| item == Items.GOLD_INGOT
 				|| item == SmeltyItems.CASTED_DIAMOND
 				|| item == Items.NETHERITE_INGOT
+				|| item == SmeltyItems.OBSIDIAN_INGOT
+				|| item == SmeltyItems.CASTED_EMERALD
 				|| item == SmeltyItems.ALLOY_INGOT;
 	}
 
@@ -228,6 +230,8 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 		if (item == Items.GOLD_INGOT) return SmeltyMaterial.GOLD;
 		if (item == SmeltyItems.CASTED_DIAMOND) return SmeltyMaterial.DIAMOND;
 		if (item == Items.NETHERITE_INGOT) return SmeltyMaterial.NETHERITE;
+		if (item == SmeltyItems.OBSIDIAN_INGOT) return SmeltyMaterial.OBSIDIAN;
+		if (item == SmeltyItems.CASTED_EMERALD) return SmeltyMaterial.EMERALD;
 		return null;
 	}
 

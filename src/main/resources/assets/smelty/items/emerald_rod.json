@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "smelty:item/emerald_rod",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": 1564002
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "EEE",
+    "EEE",
+    "EEE"
+  ],
+  "key": {
+    "E": "#smelty:emeralds"
+  },
+  "result": {
+    "id": "minecraft:emerald_block"
+  }
+}

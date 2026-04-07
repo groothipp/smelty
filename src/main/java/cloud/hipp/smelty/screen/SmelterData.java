@@ -1,5 +1,6 @@
 package cloud.hipp.smelty.screen;
 
+import cloud.hipp.smelty.material.Modifier;
 import cloud.hipp.smelty.material.SmeltyMaterial;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -13,7 +14,8 @@ public record SmelterData(
 		int maxVolume,
 		int currentVolume,
 		Map<SmeltyMaterial, Integer> moltenBreakdown,
-		Map<SmeltyMaterial, Integer> solidBreakdown
+		Map<SmeltyMaterial, Integer> solidBreakdown,
+		Map<Modifier, Integer> modifierBreakdown
 ) {
 	public int solidVolumeMl() {
 		int total = 0;
@@ -30,8 +32,9 @@ public record SmelterData(
 
 			EnumMap<SmeltyMaterial, Integer> molten = decodeBreakdown(buf);
 			EnumMap<SmeltyMaterial, Integer> solid = decodeBreakdown(buf);
+			EnumMap<Modifier, Integer> modifiers = decodeModifiers(buf);
 
-			return new SmelterData(heat, maxVol, curVol, molten, solid);
+			return new SmelterData(heat, maxVol, curVol, molten, solid, modifiers);
 		}
 
 		@Override
@@ -42,6 +45,7 @@ public record SmelterData(
 
 			encodeBreakdown(buf, data.moltenBreakdown);
 			encodeBreakdown(buf, data.solidBreakdown);
+			encodeModifiers(buf, data.modifierBreakdown);
 		}
 
 		private EnumMap<SmeltyMaterial, Integer> decodeBreakdown(RegistryByteBuf buf) {
@@ -56,6 +60,21 @@ public record SmelterData(
 		private void encodeBreakdown(RegistryByteBuf buf, Map<SmeltyMaterial, Integer> breakdown) {
 			for (SmeltyMaterial mat : SmeltyMaterial.values()) {
 				PacketCodecs.VAR_INT.encode(buf, breakdown.getOrDefault(mat, 0));
+			}
+		}
+
+		private EnumMap<Modifier, Integer> decodeModifiers(RegistryByteBuf buf) {
+			EnumMap<Modifier, Integer> map = new EnumMap<>(Modifier.class);
+			for (Modifier mod : Modifier.values()) {
+				int amount = PacketCodecs.VAR_INT.decode(buf);
+				if (amount > 0) map.put(mod, amount);
+			}
+			return map;
+		}
+
+		private void encodeModifiers(RegistryByteBuf buf, Map<Modifier, Integer> modifiers) {
+			for (Modifier mod : Modifier.values()) {
+				PacketCodecs.VAR_INT.encode(buf, modifiers.getOrDefault(mod, 0));
 			}
 		}
 	};

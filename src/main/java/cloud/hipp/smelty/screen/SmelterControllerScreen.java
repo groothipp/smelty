@@ -3,6 +3,7 @@ package cloud.hipp.smelty.screen;
 import cloud.hipp.smelty.material.AlloyComposition;
 import cloud.hipp.smelty.material.ClientAlloyRegistry;
 import cloud.hipp.smelty.material.MaterialItems;
+import cloud.hipp.smelty.material.Modifier;
 import cloud.hipp.smelty.material.SmeltyMaterial;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
@@ -27,7 +28,7 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 	public SmelterControllerScreen(SmelterControllerScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title);
 		this.backgroundWidth = 200;
-		this.backgroundHeight = 166;
+		this.backgroundHeight = 220;
 	}
 
 	@Override
@@ -94,17 +95,34 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 	private void drawComposition(DrawContext context, int startY, SmelterData data) {
 		boolean hasMolten = !data.moltenBreakdown().isEmpty();
 		boolean hasSolid = data.solidVolumeMl() > 0;
+		boolean hasModifiers = !data.modifierBreakdown().isEmpty();
 
-		if (!hasMolten && !hasSolid) return;
+		if (!hasMolten && !hasSolid && !hasModifiers) return;
 
 		// Separator line
 		context.fill(10, startY - 2, backgroundWidth - 10, startY - 1, 0xFF444444);
 
 		int y = startY;
 
+		// Determine if this is a pure single-material composition
+		Map<SmeltyMaterial, Integer> allMaterials = new java.util.EnumMap<>(SmeltyMaterial.class);
+		allMaterials.putAll(data.moltenBreakdown());
+		for (var entry : data.solidBreakdown().entrySet()) {
+			allMaterials.merge(entry.getKey(), entry.getValue(), Integer::sum);
+		}
+		boolean isPure = allMaterials.size() == 1 && !hasModifiers;
+
+		if (!isPure) {
+			// Show alloy name header
+			String alloyName = getCompositionName(allMaterials);
+			context.drawTextWithShadow(textRenderer, Text.literal(alloyName),
+					10, y, 0xFF55FFFF);
+			y += 12;
+		}
+
 		if (hasMolten) {
-			String moltenName = getCompositionName(data.moltenBreakdown());
-			context.drawTextWithShadow(textRenderer, Text.literal("Molten " + moltenName),
+			String header = isPure ? "Molten " + allMaterials.keySet().iterator().next().getDisplayName() : "Molten Materials";
+			context.drawTextWithShadow(textRenderer, Text.literal(header),
 					10, y, 0xFFFFAA00);
 			y += 12;
 
@@ -113,12 +131,31 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 
 		if (hasSolid) {
 			if (hasMolten) y += 2;
-			String solidName = getCompositionName(data.solidBreakdown());
-			context.drawTextWithShadow(textRenderer, Text.literal("Solid " + solidName),
+			String header = isPure ? "Solid " + allMaterials.keySet().iterator().next().getDisplayName() : "Solid Materials";
+			context.drawTextWithShadow(textRenderer, Text.literal(header),
 					10, y, 0xFF888888);
 			y += 12;
 
 			y = drawBreakdownLines(context, y, data.solidBreakdown());
+		}
+
+		if (hasModifiers) {
+			if (hasMolten || hasSolid) y += 2;
+			context.fill(10, y - 1, backgroundWidth - 10, y, 0xFF444444);
+			y += 2;
+			context.drawTextWithShadow(textRenderer, Text.literal("Modifiers"),
+					10, y, 0xFFBB99FF);
+			y += 12;
+
+			for (Map.Entry<Modifier, Integer> entry : data.modifierBreakdown().entrySet()) {
+				int items = entry.getValue() / AlloyComposition.MODIFIER_VOLUME;
+				int remainder = entry.getValue() % AlloyComposition.MODIFIER_VOLUME;
+				String countStr = remainder > 0 ? String.format("%.1f", entry.getValue() / (double) AlloyComposition.MODIFIER_VOLUME) : String.valueOf(items);
+				String line = getModifierName(entry.getKey()) + " x" + countStr;
+				context.drawTextWithShadow(textRenderer, Text.literal(line),
+						14, y, 0xFF000000 | entry.getKey().getTintColor());
+				y += 11;
+			}
 		}
 	}
 
@@ -140,13 +177,16 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 		return y;
 	}
 
-	private String getCompositionName(Map<SmeltyMaterial, Integer> breakdown) {
-		if (breakdown.size() == 1) {
-			return breakdown.keySet().iterator().next().getDisplayName();
-		}
+	private String getCompositionName(Map<SmeltyMaterial, Integer> allMaterials) {
+		SmelterData data = handler.getData();
 		AlloyComposition comp = new AlloyComposition();
-		for (Map.Entry<SmeltyMaterial, Integer> entry : breakdown.entrySet()) {
+		for (Map.Entry<SmeltyMaterial, Integer> entry : allMaterials.entrySet()) {
 			comp.addMaterial(entry.getKey(), entry.getValue());
+		}
+		if (data.modifierBreakdown() != null) {
+			for (Map.Entry<Modifier, Integer> entry : data.modifierBreakdown().entrySet()) {
+				comp.addModifier(entry.getKey(), entry.getValue());
+			}
 		}
 		String name = ClientAlloyRegistry.getAlloyName(comp);
 		return name != null ? name : "Alloy";
@@ -166,6 +206,22 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 		return String.format("%.1f ingots", fractional);
 	}
 
+	private String getModifierName(Modifier modifier) {
+		return switch (modifier) {
+			case COAL -> "Coal";
+			case BONE_MEAL -> "Bone Meal";
+			case SLIME_BALL -> "Slime Ball";
+			case CLAY_BALL -> "Clay Ball";
+			case LAPIS_LAZULI -> "Lapis Lazuli";
+			case SUGAR -> "Sugar";
+			case BLAZE_POWDER -> "Blaze Powder";
+			case GLOWSTONE_DUST -> "Glowstone Dust";
+			case REDSTONE -> "Redstone";
+			case ENDER_PEARL -> "Ender Pearl";
+			case MEAT -> "Meat";
+		};
+	}
+
 	private int getMaterialColor(SmeltyMaterial material) {
 		return switch (material) {
 			case COPPER -> 0xFFE07040;
@@ -173,6 +229,8 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 			case GOLD -> 0xFFFFDD44;
 			case DIAMOND -> 0xFF44EEDD;
 			case NETHERITE -> 0xFF5C4033;
+			case OBSIDIAN -> 0xFF3B1E5E;
+			case EMERALD -> 0xFF17DD62;
 		};
 	}
 

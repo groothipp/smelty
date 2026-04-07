@@ -155,7 +155,8 @@ public class CastingBasinBlockEntity extends BlockEntity implements Inventory {
 	}
 
 	private void populateOutput(ServerWorld serverWorld) {
-		java.util.List<ItemStack> vanillaItems = MaterialItems.getPureVanillaItems(fluidComposition);
+		boolean hasModifiers = !fluidComposition.getModifiers().isEmpty();
+		java.util.List<ItemStack> vanillaItems = hasModifiers ? null : MaterialItems.getPureVanillaItems(fluidComposition);
 		if (vanillaItems != null && !vanillaItems.isEmpty()) {
 			cachedOutput = vanillaItems.getFirst();
 		} else {
@@ -170,6 +171,9 @@ public class CastingBasinBlockEntity extends BlockEntity implements Inventory {
 			java.util.List<Float> percentages = new java.util.ArrayList<>();
 			for (cloud.hipp.smelty.material.SmeltyMaterial mat : cloud.hipp.smelty.material.SmeltyMaterial.values()) {
 				percentages.add((float) normalizedComp.getMaterials().getOrDefault(mat, 0));
+			}
+			for (cloud.hipp.smelty.material.Modifier mod : cloud.hipp.smelty.material.Modifier.values()) {
+				percentages.add((float) normalizedComp.getModifiers().getOrDefault(mod, 0));
 			}
 			stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 					new CustomModelDataComponent(

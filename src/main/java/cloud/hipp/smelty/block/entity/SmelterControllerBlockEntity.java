@@ -180,6 +180,13 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 				continue;
 			}
 
+			// Check for modifier items (coal, sugar, redstone, etc.)
+			cloud.hipp.smelty.material.Modifier modifier = cloud.hipp.smelty.material.Modifier.fromItem(stack.getItem());
+			if (modifier != null) {
+				processModifierItem(serverWorld, itemEntity, stack, modifier);
+				continue;
+			}
+
 			MaterialItems.MaterialEntry entry = MaterialItems.lookup(stack);
 			if (entry == null) continue;
 
@@ -194,6 +201,14 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 				} else if (stack.isOf(Items.DIAMOND) && serverWorld.getRandom().nextFloat() < 0.3f) {
 					volumePerItem *= 2;
 				} else if (stack.isOf(Items.DIAMOND_BLOCK)) {
+					for (int roll = 0; roll < 9; roll++) {
+						if (serverWorld.getRandom().nextFloat() < 0.3f) {
+							volumePerItem += MaterialItems.INGOT_VOLUME;
+						}
+					}
+				} else if (stack.isOf(Items.EMERALD) && serverWorld.getRandom().nextFloat() < 0.3f) {
+					volumePerItem *= 2;
+				} else if (stack.isOf(Items.EMERALD_BLOCK)) {
 					for (int roll = 0; roll < 9; roll++) {
 						if (serverWorld.getRandom().nextFloat() < 0.3f) {
 							volumePerItem += MaterialItems.INGOT_VOLUME;
@@ -254,14 +269,7 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 
 			// Reconstruct absolute volumes from normalized ratios
 			AlloyComposition absolute = comp.toNormalized(volumeMl);
-
-			for (Map.Entry<SmeltyMaterial, Integer> entry : absolute.getMaterials().entrySet()) {
-				if (canMelt(entry.getKey())) {
-					moltenAlloy.addMaterial(entry.getKey(), entry.getValue());
-				} else {
-					unmeltedMaterials.addMaterial(entry.getKey(), entry.getValue());
-				}
-			}
+			addCompositionToSmelter(absolute);
 
 			processed++;
 			updateCurrentVolume();
@@ -283,6 +291,23 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 			updateCachedColor();
 			markDirty();
 			needsClientSync = true;
+		}
+	}
+
+	/**
+	 * Add a composition (materials + modifiers) to the smelter, respecting heat levels.
+	 */
+	private void addCompositionToSmelter(AlloyComposition comp) {
+		for (Map.Entry<SmeltyMaterial, Integer> entry : comp.getMaterials().entrySet()) {
+			if (canMelt(entry.getKey())) {
+				moltenAlloy.addMaterial(entry.getKey(), entry.getValue());
+			} else {
+				unmeltedMaterials.addMaterial(entry.getKey(), entry.getValue());
+			}
+		}
+		// Transfer modifiers to the molten alloy (modifiers don't have heat requirements)
+		for (var entry : comp.getModifiers().entrySet()) {
+			moltenAlloy.addModifier(entry.getKey(), entry.getValue());
 		}
 	}
 
@@ -309,14 +334,7 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 			if (currentVolume + volumeMl > maxVolume) break;
 
 			AlloyComposition absolute = itemComp.toNormalized(volumeMl);
-
-			for (Map.Entry<SmeltyMaterial, Integer> entry : absolute.getMaterials().entrySet()) {
-				if (canMelt(entry.getKey())) {
-					moltenAlloy.addMaterial(entry.getKey(), entry.getValue());
-				} else {
-					unmeltedMaterials.addMaterial(entry.getKey(), entry.getValue());
-				}
-			}
+			addCompositionToSmelter(absolute);
 
 			processed++;
 			updateCurrentVolume();
@@ -335,6 +353,35 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 			}
 			checkSolidification();
 			updateCurrentVolume();
+			updateCachedColor();
+			markDirty();
+			needsClientSync = true;
+		}
+	}
+
+	private void processModifierItem(ServerWorld serverWorld, ItemEntity itemEntity, ItemStack stack,
+								 cloud.hipp.smelty.material.Modifier modifier) {
+		if (moltenAlloy.isEmpty()) return; // Need molten alloy to add modifiers to
+
+		int itemCount = stack.getCount();
+		int processed = 0;
+
+		for (int i = 0; i < itemCount; i++) {
+			moltenAlloy.addModifier(modifier, AlloyComposition.MODIFIER_VOLUME);
+			processed++;
+		}
+
+		if (processed > 0) {
+			serverWorld.playSound(null, itemEntity.getX(), itemEntity.getY(), itemEntity.getZ(),
+					SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundCategory.BLOCKS, 0.5f, 2.0f + serverWorld.getRandom().nextFloat() * 0.4f);
+			serverWorld.spawnParticles(ParticleTypes.FLAME,
+					itemEntity.getX(), itemEntity.getY() + 0.2, itemEntity.getZ(),
+					3 + processed, 0.15, 0.1, 0.15, 0.02);
+			if (processed >= itemCount) {
+				itemEntity.discard();
+			} else {
+				stack.decrement(processed);
+			}
 			updateCachedColor();
 			markDirty();
 			needsClientSync = true;
@@ -582,7 +629,7 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 						be.minX + be.width - 1, be.minY + be.height, be.minZ + be.depth - 1);
 				for (ItemEntity item : serverWorld.getEntitiesByClass(ItemEntity.class, interiorBox, e -> true)) {
 					ItemStack itemStack = item.getStack();
-					if (!itemStack.isOf(SmeltyBlocks.SOLID_ALLOY.asItem()) && MaterialItems.lookup(itemStack) == null && getAlloyItemVolume(itemStack) == 0) {
+					if (!itemStack.isOf(SmeltyBlocks.SOLID_ALLOY.asItem()) && MaterialItems.lookup(itemStack) == null && getAlloyItemVolume(itemStack) == 0 && cloud.hipp.smelty.material.Modifier.fromItem(itemStack.getItem()) == null) {
 						serverWorld.playSound(null, item.getX(), item.getY(), item.getZ(),
 								SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundCategory.BLOCKS, 0.5f, 2.0f + serverWorld.getRandom().nextFloat() * 0.4f);
 						item.discard();
@@ -680,10 +727,17 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 	// --- Screen ---
 
 	public SmelterData buildScreenData() {
+		// Combine modifiers from both molten and unmelted compositions
+		EnumMap<cloud.hipp.smelty.material.Modifier, Integer> modifiers = new EnumMap<>(cloud.hipp.smelty.material.Modifier.class);
+		modifiers.putAll(moltenAlloy.getModifiers());
+		for (var entry : unmeltedMaterials.getModifiers().entrySet()) {
+			modifiers.merge(entry.getKey(), entry.getValue(), Integer::sum);
+		}
 		return new SmelterData(
 				heatLevel, maxVolume, currentVolume,
 				new EnumMap<>(moltenAlloy.getMaterials()),
-				new EnumMap<>(unmeltedMaterials.getMaterials())
+				new EnumMap<>(unmeltedMaterials.getMaterials()),
+				modifiers
 		);
 	}
 

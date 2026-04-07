@@ -63,7 +63,7 @@ public class Smelty implements ModInitializer {
 					if (name.isEmpty() || name.length() > 32) return;
 
 					AlloyComposition comp = AnalysisBenchBlockEntity.getCompositionFromPlate(bench.getPlateItem());
-					if (comp.getMaterials().size() <= 1) return;
+					if (comp.getMaterials().size() <= 1 && comp.getModifiers().isEmpty()) return;
 
 					AlloyRegistry registry = AlloyRegistry.get(serverWorld);
 					// Don't allow overwriting an existing name

@@ -1,7 +1,9 @@
 package cloud.hipp.smelty.screen;
 
 import cloud.hipp.smelty.material.AlloyComposition;
+import cloud.hipp.smelty.material.MaterialItems;
 import cloud.hipp.smelty.material.MaterialProperty;
+import cloud.hipp.smelty.material.Modifier;
 import cloud.hipp.smelty.material.SmeltyMaterial;
 import cloud.hipp.smelty.network.RenameAlloyPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -30,7 +32,7 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 	public AnalysisBenchScreen(AnalysisBenchScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title);
 		this.backgroundWidth = 220;
-		this.backgroundHeight = 210;
+		this.backgroundHeight = 240;
 	}
 
 	@Override
@@ -123,13 +125,16 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 		for (Map.Entry<SmeltyMaterial, Integer> entry : data.composition().entrySet()) {
 			comp.addMaterial(entry.getKey(), entry.getValue());
 		}
+		for (Map.Entry<Modifier, Integer> entry : data.modifiers().entrySet()) {
+			comp.addModifier(entry.getKey(), entry.getValue());
+		}
 
 		// Draw property bars
 		int startY = 32;
 		MaterialProperty[] properties = MaterialProperty.values();
 		for (int i = 0; i < properties.length; i++) {
 			MaterialProperty prop = properties[i];
-			double value = comp.getBlendedProperty(prop);
+			double value = comp.getFinalProperty(prop);
 			int barY = startY + i * BAR_SPACING;
 			drawPropertyBar(context, prop, value, barY);
 		}
@@ -142,6 +147,32 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 				String line = entry.getKey().getDisplayName() + ": " + entry.getValue() + "%";
 				context.drawTextWithShadow(textRenderer, Text.literal(line),
 						14, compY, getMaterialColor(entry.getKey()));
+				compY += 11;
+			}
+		}
+
+		// Modifier breakdown
+		if (!data.modifiers().isEmpty()) {
+			compY += 2;
+			context.fill(10, compY - 1, backgroundWidth - 10, compY, 0xFF444444);
+			compY += 2;
+			context.drawTextWithShadow(textRenderer, Text.literal("Modifiers"),
+					10, compY, 0xFFBB99FF);
+			compY += 12;
+			int totalMaterial = 0;
+			for (int v : data.composition().values()) totalMaterial += v;
+			for (Map.Entry<Modifier, Integer> entry : data.modifiers().entrySet()) {
+				// Denormalize: composition is normalized (materials sum to ~100),
+				// convert modifier units back to actual item count for a plate (2 ingots)
+				double items = totalMaterial > 0
+						? (double) entry.getValue() * MaterialItems.PLATE_VOLUME / (totalMaterial * AlloyComposition.MODIFIER_VOLUME)
+						: 0;
+				String countStr = items == Math.floor(items)
+						? String.valueOf((int) items)
+						: String.format("%.1f", items);
+				String line = getModifierName(entry.getKey()) + " " + countStr + "x";
+				context.drawTextWithShadow(textRenderer, Text.literal(line),
+						14, compY, 0xFF000000 | entry.getKey().getTintColor());
 				compY += 11;
 			}
 		}
@@ -196,7 +227,22 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 			case DUCTILITY -> "Ductility";
 			case DENSITY -> "Density";
 			case CORROSION_RESISTANCE -> "Corr. Res.";
-			case THERMAL_CONDUCTIVITY -> "Therm. C.";
+		};
+	}
+
+	private String getModifierName(Modifier modifier) {
+		return switch (modifier) {
+			case COAL -> "Coal";
+			case BONE_MEAL -> "Bone Meal";
+			case SLIME_BALL -> "Slime Ball";
+			case CLAY_BALL -> "Clay Ball";
+			case LAPIS_LAZULI -> "Lapis Lazuli";
+			case SUGAR -> "Sugar";
+			case BLAZE_POWDER -> "Blaze Powder";
+			case GLOWSTONE_DUST -> "Glowstone Dust";
+			case REDSTONE -> "Redstone";
+			case ENDER_PEARL -> "Ender Pearl";
+			case MEAT -> "Meat";
 		};
 	}
 
@@ -207,6 +253,8 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 			case GOLD -> 0xFFFFDD44;
 			case DIAMOND -> 0xFF44EEDD;
 			case NETHERITE -> 0xFF5C4033;
+			case OBSIDIAN -> 0xFF3B1E5E;
+			case EMERALD -> 0xFF17DD62;
 		};
 	}
 

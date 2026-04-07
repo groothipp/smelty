@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "smelty:casted_diamond_block"
+  ],
+  "result": {
+    "id": "smelty:casted_diamond",
+    "count": 9
+  }
+}

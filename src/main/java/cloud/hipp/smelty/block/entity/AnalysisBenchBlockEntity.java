@@ -127,7 +127,7 @@ public class AnalysisBenchBlockEntity extends BlockEntity implements ExtendedScr
 
 	private String getMaterialName(AlloyComposition composition) {
 		Map<SmeltyMaterial, Integer> mats = composition.getMaterials();
-		if (mats.size() == 1) {
+		if (mats.size() == 1 && composition.getModifiers().isEmpty()) {
 			return mats.keySet().iterator().next().getDisplayName();
 		}
 		// Check AlloyRegistry for a custom name
@@ -144,11 +144,13 @@ public class AnalysisBenchBlockEntity extends BlockEntity implements ExtendedScr
 		AlloyComposition normalized = comp.toNormalized(100);
 		EnumMap<SmeltyMaterial, Integer> map = new EnumMap<>(SmeltyMaterial.class);
 		map.putAll(normalized.getMaterials());
+		EnumMap<cloud.hipp.smelty.material.Modifier, Integer> modMap = new EnumMap<>(cloud.hipp.smelty.material.Modifier.class);
+		modMap.putAll(normalized.getModifiers());
 
 		String name = getMaterialName(comp);
-		boolean renameable = comp.getMaterials().size() > 1 && name.equals("Alloy");
+		boolean renameable = (comp.getMaterials().size() > 1 || !comp.getModifiers().isEmpty()) && name.equals("Alloy");
 
-		return new AnalysisBenchData(map, name, renameable, pos);
+		return new AnalysisBenchData(map, modMap, name, renameable, pos);
 	}
 
 	@Override

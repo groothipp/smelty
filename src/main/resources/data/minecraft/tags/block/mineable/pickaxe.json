@@ -8,6 +8,7 @@
     "smelty:casting_basin",
     "smelty:casting_table",
     "smelty:solid_alloy",
-    "smelty:casted_diamond_block"
+    "smelty:casted_diamond_block",
+    "smelty:casted_emerald_block"
   ]
 }

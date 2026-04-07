@@ -15,10 +15,26 @@ public class AlloyComposition {
 	 */
 	public static final int ITEM_RATIO_BASE = 20;
 
+	/**
+	 * Volume units per modifier item. Same as ingot volume so that
+	 * modifier amounts scale proportionally with material volumes.
+	 */
+	public static final int MODIFIER_VOLUME = MaterialItems.UNITS_PER_INGOT;
+
+	/** Minimum volume fraction (10%) for a material to count as "distinct" in diversity bonus. */
+	private static final double DIVERSITY_THRESHOLD = 0.10;
+
+	private static final double[] DIVERSITY_BONUSES = {0.0, 0.0, 0.15, 0.30, 0.45, 0.55};
+
 	private final EnumMap<SmeltyMaterial, Integer> materials = new EnumMap<>(SmeltyMaterial.class);
+	private final EnumMap<Modifier, Integer> modifiers = new EnumMap<>(Modifier.class);
 
 	public void addMaterial(SmeltyMaterial material, int volumeMl) {
 		materials.merge(material, volumeMl, Integer::sum);
+	}
+
+	public void addModifier(Modifier modifier, int amount) {
+		modifiers.merge(modifier, amount, Integer::sum);
 	}
 
 	public int getTotalVolumeMl() {
@@ -35,6 +51,7 @@ public class AlloyComposition {
 
 	public void clear() {
 		materials.clear();
+		modifiers.clear();
 	}
 
 	public void drain(int drainMl) {
@@ -45,38 +62,10 @@ public class AlloyComposition {
 			return;
 		}
 		double ratio = (double) drainMl / totalMl;
-		// Compute rounded drain amounts
-		EnumMap<SmeltyMaterial, Integer> drainAmounts = new EnumMap<>(SmeltyMaterial.class);
-		int roundedTotal = 0;
-		SmeltyMaterial largestMat = null;
-		int largestValue = 0;
-		for (var entry : materials.entrySet()) {
-			int toDrain = (int) Math.round(ratio * entry.getValue());
-			drainAmounts.put(entry.getKey(), toDrain);
-			roundedTotal += toDrain;
-			// Track the material with the largest actual value (best target for adjustment)
-			if (largestMat == null || entry.getValue() > largestValue) {
-				largestValue = entry.getValue();
-				largestMat = entry.getKey();
-			}
-		}
-		// Adjust largest material to compensate for rounding error, clamped to [0, value]
-		if (roundedTotal != drainMl && largestMat != null) {
-			int adjusted = drainAmounts.get(largestMat) + (drainMl - roundedTotal);
-			drainAmounts.put(largestMat, Math.max(0, Math.min(adjusted, materials.get(largestMat))));
-		}
-		// Apply
-		var iterator = materials.entrySet().iterator();
-		while (iterator.hasNext()) {
-			var entry = iterator.next();
-			int toDrain = drainAmounts.getOrDefault(entry.getKey(), 0);
-			int remaining = entry.getValue() - toDrain;
-			if (remaining <= 0) {
-				iterator.remove();
-			} else {
-				entry.setValue(remaining);
-			}
-		}
+		// Drain materials
+		drainMap(materials, ratio, drainMl);
+		// Drain modifiers proportionally
+		drainModifiers(ratio);
 	}
 
 	/**
@@ -92,33 +81,69 @@ public class AlloyComposition {
 			return drained;
 		}
 		double ratio = (double) drainMl / totalMl;
-		// Compute rounded drain amounts
-		EnumMap<SmeltyMaterial, Integer> drainAmounts = new EnumMap<>(SmeltyMaterial.class);
+		// Drain materials
+		drainMapAndReturn(materials, drained.materials, ratio, drainMl);
+		// Drain modifiers proportionally
+		drainMapProportional(modifiers, drained.modifiers, ratio);
+		return drained;
+	}
+
+	private <K extends Enum<K>> void drainMap(EnumMap<K, Integer> map, double ratio, int targetDrain) {
+		EnumMap<K, Integer> drainAmounts = new EnumMap<>(map);
 		int roundedTotal = 0;
-		SmeltyMaterial largestMat = null;
+		K largestKey = null;
 		int largestValue = 0;
-		for (var entry : materials.entrySet()) {
+		for (var entry : map.entrySet()) {
 			int toDrain = (int) Math.round(ratio * entry.getValue());
 			drainAmounts.put(entry.getKey(), toDrain);
 			roundedTotal += toDrain;
-			// Track the material with the largest actual value (best target for adjustment)
-			if (largestMat == null || entry.getValue() > largestValue) {
+			if (largestKey == null || entry.getValue() > largestValue) {
 				largestValue = entry.getValue();
-				largestMat = entry.getKey();
+				largestKey = entry.getKey();
 			}
 		}
-		// Adjust largest material to compensate for rounding error, clamped to [0, value]
-		if (roundedTotal != drainMl && largestMat != null) {
-			int adjusted = drainAmounts.get(largestMat) + (drainMl - roundedTotal);
-			drainAmounts.put(largestMat, Math.max(0, Math.min(adjusted, materials.get(largestMat))));
+		if (roundedTotal != targetDrain && largestKey != null) {
+			int adjusted = drainAmounts.get(largestKey) + (targetDrain - roundedTotal);
+			drainAmounts.put(largestKey, Math.max(0, Math.min(adjusted, map.get(largestKey))));
 		}
-		// Apply
-		var iterator = materials.entrySet().iterator();
+		var iterator = map.entrySet().iterator();
+		while (iterator.hasNext()) {
+			var entry = iterator.next();
+			int toDrain = drainAmounts.getOrDefault(entry.getKey(), 0);
+			int remaining = entry.getValue() - toDrain;
+			if (remaining <= 0) {
+				iterator.remove();
+			} else {
+				entry.setValue(remaining);
+			}
+		}
+	}
+
+	private <K extends Enum<K>> void drainMapAndReturn(EnumMap<K, Integer> source, EnumMap<K, Integer> dest,
+													   double ratio, int targetDrain) {
+		EnumMap<K, Integer> drainAmounts = new EnumMap<>(source);
+		int roundedTotal = 0;
+		K largestKey = null;
+		int largestValue = 0;
+		for (var entry : source.entrySet()) {
+			int toDrain = (int) Math.round(ratio * entry.getValue());
+			drainAmounts.put(entry.getKey(), toDrain);
+			roundedTotal += toDrain;
+			if (largestKey == null || entry.getValue() > largestValue) {
+				largestValue = entry.getValue();
+				largestKey = entry.getKey();
+			}
+		}
+		if (roundedTotal != targetDrain && largestKey != null) {
+			int adjusted = drainAmounts.get(largestKey) + (targetDrain - roundedTotal);
+			drainAmounts.put(largestKey, Math.max(0, Math.min(adjusted, source.get(largestKey))));
+		}
+		var iterator = source.entrySet().iterator();
 		while (iterator.hasNext()) {
 			var entry = iterator.next();
 			int toDrain = drainAmounts.getOrDefault(entry.getKey(), 0);
 			if (toDrain > 0) {
-				drained.addMaterial(entry.getKey(), toDrain);
+				dest.put(entry.getKey(), toDrain);
 			}
 			int remaining = entry.getValue() - toDrain;
 			if (remaining <= 0) {
@@ -127,7 +152,37 @@ public class AlloyComposition {
 				entry.setValue(remaining);
 			}
 		}
-		return drained;
+	}
+
+	private <K extends Enum<K>> void drainModifiers(double ratio) {
+		var iterator = modifiers.entrySet().iterator();
+		while (iterator.hasNext()) {
+			var entry = iterator.next();
+			int toDrain = (int) Math.round(ratio * entry.getValue());
+			int remaining = entry.getValue() - toDrain;
+			if (remaining <= 0) {
+				iterator.remove();
+			} else {
+				entry.setValue(remaining);
+			}
+		}
+	}
+
+	private <K extends Enum<K>> void drainMapProportional(EnumMap<K, Integer> source, EnumMap<K, Integer> dest, double ratio) {
+		var iterator = source.entrySet().iterator();
+		while (iterator.hasNext()) {
+			var entry = iterator.next();
+			int toDrain = (int) Math.round(ratio * entry.getValue());
+			if (toDrain > 0) {
+				dest.put(entry.getKey(), toDrain);
+			}
+			int remaining = entry.getValue() - toDrain;
+			if (remaining <= 0) {
+				iterator.remove();
+			} else {
+				entry.setValue(remaining);
+			}
+		}
 	}
 
 	/**
@@ -143,37 +198,46 @@ public class AlloyComposition {
 			return snapshot;
 		}
 		double ratio = (double) amountMl / totalMl;
-		int roundedTotal = 0;
-		SmeltyMaterial largestMat = null;
-		int largestValue = 0;
-		EnumMap<SmeltyMaterial, Integer> amounts = new EnumMap<>(SmeltyMaterial.class);
-		for (var entry : materials.entrySet()) {
+		scaleInto(materials, snapshot.materials, ratio, amountMl);
+		// Scale modifiers proportionally
+		for (var entry : modifiers.entrySet()) {
 			int amount = (int) Math.round(ratio * entry.getValue());
-			amounts.put(entry.getKey(), amount);
-			roundedTotal += amount;
-			// Track material with largest actual value (best target for adjustment)
-			if (largestMat == null || entry.getValue() > largestValue) {
-				largestValue = entry.getValue();
-				largestMat = entry.getKey();
-			}
-		}
-		if (roundedTotal != amountMl && largestMat != null) {
-			int adjusted = amounts.get(largestMat) + (amountMl - roundedTotal);
-			amounts.put(largestMat, Math.max(0, adjusted));
-		}
-		for (var entry : amounts.entrySet()) {
-			if (entry.getValue() > 0) {
-				snapshot.addMaterial(entry.getKey(), entry.getValue());
+			if (amount > 0) {
+				snapshot.modifiers.put(entry.getKey(), amount);
 			}
 		}
 		return snapshot;
 	}
 
+	private <K extends Enum<K>> void scaleInto(EnumMap<K, Integer> source, EnumMap<K, Integer> dest,
+											   double ratio, int targetTotal) {
+		int roundedTotal = 0;
+		K largestKey = null;
+		int largestValue = 0;
+		EnumMap<K, Integer> amounts = new EnumMap<>(source);
+		for (var entry : source.entrySet()) {
+			int amount = (int) Math.round(ratio * entry.getValue());
+			amounts.put(entry.getKey(), amount);
+			roundedTotal += amount;
+			if (largestKey == null || entry.getValue() > largestValue) {
+				largestValue = entry.getValue();
+				largestKey = entry.getKey();
+			}
+		}
+		if (roundedTotal != targetTotal && largestKey != null) {
+			int adjusted = amounts.get(largestKey) + (targetTotal - roundedTotal);
+			amounts.put(largestKey, Math.max(0, adjusted));
+		}
+		for (var entry : amounts.entrySet()) {
+			if (entry.getValue() > 0) {
+				dest.put(entry.getKey(), entry.getValue());
+			}
+		}
+	}
+
 	/**
 	 * Returns a new AlloyComposition with material values proportionally scaled
-	 * to sum to targetTotal, preserving ratios. Used to normalize compositions
-	 * to a canonical form (e.g., RATIO_BASE) and to reconstruct absolute volumes
-	 * from normalized ratios.
+	 * to sum to targetTotal, preserving ratios. Modifiers are scaled by the same factor.
 	 */
 	public AlloyComposition toNormalized(int targetTotal) {
 		AlloyComposition result = new AlloyComposition();
@@ -183,27 +247,13 @@ public class AlloyComposition {
 			result.mergeFrom(this);
 			return result;
 		}
-		int roundedTotal = 0;
-		SmeltyMaterial largestMat = null;
-		int largestValue = 0;
-		EnumMap<SmeltyMaterial, Integer> amounts = new EnumMap<>(SmeltyMaterial.class);
-		for (var entry : materials.entrySet()) {
-			int amount = (int) Math.round((double) entry.getValue() / total * targetTotal);
-			amounts.put(entry.getKey(), amount);
-			roundedTotal += amount;
-			// Track material with largest actual value (best target for adjustment)
-			if (largestMat == null || entry.getValue() > largestValue) {
-				largestValue = entry.getValue();
-				largestMat = entry.getKey();
-			}
-		}
-		if (roundedTotal != targetTotal && largestMat != null) {
-			int adjusted = amounts.get(largestMat) + (targetTotal - roundedTotal);
-			amounts.put(largestMat, Math.max(0, adjusted));
-		}
-		for (var entry : amounts.entrySet()) {
-			if (entry.getValue() > 0) {
-				result.addMaterial(entry.getKey(), entry.getValue());
+		double scaleFactor = (double) targetTotal / total;
+		scaleInto(materials, result.materials, scaleFactor, targetTotal);
+		// Scale modifiers by the same factor
+		for (var entry : modifiers.entrySet()) {
+			int amount = (int) Math.round(scaleFactor * entry.getValue());
+			if (amount > 0) {
+				result.modifiers.put(entry.getKey(), amount);
 			}
 		}
 		return result;
@@ -212,6 +262,12 @@ public class AlloyComposition {
 	public Map<SmeltyMaterial, Integer> getMaterials() {
 		return materials;
 	}
+
+	public Map<Modifier, Integer> getModifiers() {
+		return modifiers;
+	}
+
+	// --- Raw blended properties (weighted average, no modifiers or diversity) ---
 
 	public double getBlendedProperty(MaterialProperty property) {
 		int totalMl = getTotalVolumeMl();
@@ -229,9 +285,135 @@ public class AlloyComposition {
 		return getBlendedProperty(MaterialProperty.MELTING_POINT);
 	}
 
+	// --- Modifier bonuses ---
+
+	/**
+	 * Get modifier concentration (items per ingot) for a given modifier.
+	 */
+	public double getModifierConcentration(Modifier modifier) {
+		int totalMl = getTotalVolumeMl();
+		if (totalMl == 0) return 0;
+		int units = modifiers.getOrDefault(modifier, 0);
+		// concentration = modifier items / total ingots = (units/MODIFIER_VOLUME) / (totalMl/INGOT_VOLUME)
+		// Since MODIFIER_VOLUME == INGOT_VOLUME, this simplifies to units/totalMl
+		return (double) units / totalMl;
+	}
+
+	/**
+	 * Compute total modifier bonus for a given property across all modifiers.
+	 */
+	public double getModifierBonus(MaterialProperty property) {
+		double totalBonus = 0;
+		for (Modifier mod : Modifier.values()) {
+			double concentration = getModifierConcentration(mod);
+			if (concentration > 0) {
+				totalBonus += mod.getBonus(property, concentration);
+			}
+		}
+		return totalBonus;
+	}
+
+	// --- Diversity bonus ---
+
+	/**
+	 * Count materials that make up at least 10% of the alloy by volume.
+	 */
+	public int getDistinctMaterialCount() {
+		int totalMl = getTotalVolumeMl();
+		if (totalMl == 0) return 0;
+		int count = 0;
+		for (int vol : materials.values()) {
+			if ((double) vol / totalMl >= DIVERSITY_THRESHOLD) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	/**
+	 * Get the diversity bonus multiplier based on distinct material count.
+	 */
+	public double getDiversityBonus() {
+		int distinct = getDistinctMaterialCount();
+		if (distinct >= DIVERSITY_BONUSES.length) {
+			return DIVERSITY_BONUSES[DIVERSITY_BONUSES.length - 1];
+		}
+		return DIVERSITY_BONUSES[distinct];
+	}
+
+	// --- Final alloy properties (blended + modifiers + diversity) ---
+
+	/**
+	 * Compute the final alloy property value after applying modifier bonuses and diversity bonus.
+	 * P_final = (P_blended + modifier_bonus) * (1 + diversity_bonus)
+	 */
+	public double getFinalProperty(MaterialProperty property) {
+		double blended = getBlendedProperty(property);
+		double modBonus = getModifierBonus(property);
+		double diversity = getDiversityBonus();
+		return (blended + modBonus) * (1 + diversity);
+	}
+
+	/**
+	 * Compute the density score for the stat total.
+	 * D_s = (ρ - 50)² / 25
+	 */
+	public double getDensityScore() {
+		double density = getFinalProperty(MaterialProperty.DENSITY);
+		double diff = density - 50;
+		return (diff * diff) / 25.0;
+	}
+
+	/**
+	 * Compute the stat total: sum of final properties across all non-melting-point properties,
+	 * using density score instead of raw density.
+	 */
+	public double getStatTotal() {
+		double total = 0;
+		for (MaterialProperty prop : MaterialProperty.values()) {
+			if (prop == MaterialProperty.MELTING_POINT) continue;
+			if (prop == MaterialProperty.DENSITY) {
+				total += getDensityScore();
+			} else {
+				total += getFinalProperty(prop);
+			}
+		}
+		return total;
+	}
+
+	/**
+	 * Get the tool tier (I-V) based on the stat total.
+	 */
+	public int getTier() {
+		double statTotal = getStatTotal();
+		if (statTotal >= 455) return 5;
+		if (statTotal >= 333) return 4;
+		if (statTotal >= 245) return 3;
+		if (statTotal >= 180) return 2;
+		return 1;
+	}
+
+	/**
+	 * Get the tier multiplier (L) for tool/armor formulas.
+	 */
+	public double getTierMultiplier() {
+		return switch (getTier()) {
+			case 1 -> 0.4;
+			case 2 -> 0.8;
+			case 3 -> 1.0;
+			case 4 -> 1.5;
+			case 5 -> 2.25;
+			default -> 1.0;
+		};
+	}
+
+	public static final String[] TIER_NAMES = {"I", "II", "III", "IV", "V"};
+
+	// --- Color ---
+
 	public int getBlendedColor() {
 		int totalMl = getTotalVolumeMl();
-		if (totalMl == 0) return 0x808080; // default gray (no materials)
+		if (totalMl == 0) return 0x808080;
 
 		double r = 0, g = 0, b = 0;
 		for (var entry : materials.entrySet()) {
@@ -241,7 +423,25 @@ public class AlloyComposition {
 			g += ratio * ((color >> 8) & 0xFF);
 			b += ratio * (color & 0xFF);
 		}
-		return ((int) r << 16) | ((int) g << 8) | (int) b;
+		// Apply modifier tint influence (subtle — each modifier contributes up to 10% tint)
+		double totalModWeight = 0;
+		double mr = 0, mg = 0, mb = 0;
+		for (var entry : modifiers.entrySet()) {
+			double concentration = getModifierConcentration(entry.getKey());
+			double weight = Math.min(0.1, concentration * 0.05);
+			totalModWeight += weight;
+			int tint = entry.getKey().getTintColor();
+			mr += weight * ((tint >> 16) & 0xFF);
+			mg += weight * ((tint >> 8) & 0xFF);
+			mb += weight * (tint & 0xFF);
+		}
+		if (totalModWeight > 0) {
+			double matWeight = 1.0 - Math.min(totalModWeight, 0.4);
+			r = r * matWeight + mr;
+			g = g * matWeight + mg;
+			b = b * matWeight + mb;
+		}
+		return ((int) Math.min(255, r) << 16) | ((int) Math.min(255, g) << 8) | (int) Math.min(255, b);
 	}
 
 	public int getRequiredHeat() {
@@ -270,26 +470,43 @@ public class AlloyComposition {
 				sb.append(mat.name()).append(':').append(amount);
 			}
 		}
+		// Include modifiers in the key so different modifier combos produce distinct keys
+		boolean hasModifier = false;
+		for (Modifier mod : Modifier.values()) {
+			int amount = normalized.getModifiers().getOrDefault(mod, 0);
+			if (amount > 0) {
+				sb.append(hasModifier ? ',' : '|');
+				hasModifier = true;
+				sb.append(mod.name()).append(':').append(amount);
+			}
+		}
 		return sb.toString();
 	}
 
 	/**
-	 * Convert to a list of float percentages (one per SmeltyMaterial in enum order).
-	 * Uses integer normalization to ensure identical ratios always produce identical floats,
-	 * preventing stacking issues from floating-point precision drift.
+	 * Convert to a list of float percentages.
+	 * Layout: [7 material percentages, 11 modifier amounts (scaled)]
 	 */
 	public java.util.List<Float> toPercentages() {
 		AlloyComposition normalized = toNormalized(RATIO_BASE);
 		java.util.List<Float> result = new java.util.ArrayList<>();
+		// Materials
 		for (SmeltyMaterial mat : SmeltyMaterial.values()) {
 			int vol = normalized.getMaterials().getOrDefault(mat, 0);
 			result.add((float) vol);
+		}
+		// Modifiers (scaled alongside materials)
+		for (Modifier mod : Modifier.values()) {
+			int amount = normalized.getModifiers().getOrDefault(mod, 0);
+			result.add((float) amount);
 		}
 		return result;
 	}
 
 	/**
-	 * Create a composition from float percentages (one per SmeltyMaterial in enum order).
+	 * Create a composition from float percentages.
+	 * Layout: [7 material percentages, 11 modifier amounts (scaled)]
+	 * Handles legacy data with fewer entries gracefully.
 	 */
 	public static AlloyComposition fromPercentages(java.util.List<Float> percentages) {
 		AlloyComposition comp = new AlloyComposition();
@@ -300,12 +517,24 @@ public class AlloyComposition {
 				comp.addMaterial(mats[i], amount);
 			}
 		}
+		// Read modifiers if present
+		Modifier[] mods = Modifier.values();
+		int modStart = mats.length;
+		for (int i = 0; i < mods.length && (modStart + i) < percentages.size(); i++) {
+			int amount = Math.round(percentages.get(modStart + i));
+			if (amount > 0) {
+				comp.addModifier(mods[i], amount);
+			}
+		}
 		return comp;
 	}
 
 	public void mergeFrom(AlloyComposition other) {
 		for (var entry : other.materials.entrySet()) {
 			addMaterial(entry.getKey(), entry.getValue());
+		}
+		for (var entry : other.modifiers.entrySet()) {
+			addModifier(entry.getKey(), entry.getValue());
 		}
 	}
 
@@ -315,18 +544,37 @@ public class AlloyComposition {
 			item.putString("Material", entry.getKey().name());
 			item.putInt("Volume", entry.getValue());
 		}
+		for (var entry : modifiers.entrySet()) {
+			WriteView item = list.add();
+			item.putString("Modifier", entry.getKey().name());
+			item.putInt("Amount", entry.getValue());
+		}
 	}
 
 	public void readFromView(ReadView.ListReadView list) {
 		materials.clear();
+		modifiers.clear();
 		for (ReadView item : list) {
-			String name = item.getString("Material", "");
-			int volume = item.getInt("Volume", 0);
-			if (!name.isEmpty() && volume > 0) {
-				try {
-					SmeltyMaterial material = SmeltyMaterial.valueOf(name);
-					materials.put(material, volume);
-				} catch (IllegalArgumentException ignored) {
+			String materialName = item.getString("Material", "");
+			if (!materialName.isEmpty()) {
+				int volume = item.getInt("Volume", 0);
+				if (volume > 0) {
+					try {
+						SmeltyMaterial material = SmeltyMaterial.valueOf(materialName);
+						materials.put(material, volume);
+					} catch (IllegalArgumentException ignored) {
+					}
+				}
+			}
+			String modifierName = item.getString("Modifier", "");
+			if (!modifierName.isEmpty()) {
+				int amount = item.getInt("Amount", 0);
+				if (amount > 0) {
+					try {
+						Modifier modifier = Modifier.valueOf(modifierName);
+						modifiers.put(modifier, amount);
+					} catch (IllegalArgumentException ignored) {
+					}
 				}
 			}
 		}

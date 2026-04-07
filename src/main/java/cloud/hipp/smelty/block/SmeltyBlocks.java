@@ -99,6 +99,15 @@ public class SmeltyBlocks {
 					.requiresTool()
 	);
 
+	public static final Block CASTED_EMERALD_BLOCK = register("casted_emerald_block",
+			Block::new,
+			AbstractBlock.Settings.create()
+					.mapColor(MapColor.EMERALD_GREEN)
+					.strength(5.0F, 6.0F)
+					.sounds(BlockSoundGroup.METAL)
+					.requiresTool()
+	);
+
 	public static final Block SOLID_ALLOY = register("solid_alloy",
 			SolidAlloyBlock::new,
 			AbstractBlock.Settings.create()

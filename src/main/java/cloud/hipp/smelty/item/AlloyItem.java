@@ -25,11 +25,9 @@ public class AlloyItem extends Item {
 		CustomModelDataComponent cmd = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
 		if (cmd != null && !cmd.floats().isEmpty()) {
 			AlloyComposition comp = AlloyComposition.fromPercentages(cmd.floats());
-			if (comp.getMaterials().size() > 1) {
-				String name = ClientAlloyRegistry.getAlloyName(comp);
-				if (name != null) {
-					return Text.literal(name + " " + suffix);
-				}
+			String name = ClientAlloyRegistry.getAlloyName(comp);
+			if (name != null) {
+				return Text.literal(name + " " + suffix);
 			}
 		}
 		return super.getName(stack);

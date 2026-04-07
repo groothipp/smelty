@@ -71,24 +71,28 @@ public class MetallurgyGuideItem extends Item {
 				.append(Text.literal("Malleability\n").formatted(Formatting.DARK_GREEN))
 				.append(Text.literal("Ductility\n").formatted(Formatting.DARK_AQUA))
 				.append(Text.literal("Density\n").formatted(Formatting.DARK_GRAY))
-				.append(Text.literal("Corrosion Resist.\n").formatted(Formatting.GREEN))
-				.append(Text.literal("Thermal Cond.\n\n").formatted(Formatting.RED))
-				.append(Text.literal("All values 0-100. Alloys blend by proportion.").formatted(Formatting.GRAY));
+				.append(Text.literal("Corrosion Resist.\n\n").formatted(Formatting.GREEN))
+				.append(Text.literal("All values 0-100. Alloys blend by proportion.\nMulti-material alloys get a diversity bonus!").formatted(Formatting.GRAY));
 	}
 
 	private static Text offensePage() {
 		return Text.empty()
 				.append(Text.literal("Attack Damage\n").formatted(Formatting.BOLD, Formatting.DARK_RED))
-				.append(Text.literal("Hardness").formatted(Formatting.DARK_RED))
-				.append(Text.literal(" (major)\n"))
+				.append(Text.literal("Sword: ").formatted(Formatting.GRAY))
 				.append(Text.literal("Ductility").formatted(Formatting.DARK_AQUA))
-				.append(Text.literal(" (minor)\n\n"))
+				.append(Text.literal(" > H > D\n"))
+				.append(Text.literal("Axe: ").formatted(Formatting.GRAY))
+				.append(Text.literal("Hardness").formatted(Formatting.DARK_RED))
+				.append(Text.literal(" > Density\n"))
+				.append(Text.literal("Spear: ").formatted(Formatting.GRAY))
+				.append(Text.literal("Toughness").formatted(Formatting.BLUE))
+				.append(Text.literal(" > H, light\n\n"))
 				.append(Text.literal("Attack Speed\n").formatted(Formatting.BOLD, Formatting.DARK_GREEN))
 				.append(Text.literal("Density").formatted(Formatting.DARK_GRAY))
 				.append(Text.literal(" (lower is faster)\n\n"))
 				.append(Text.literal("Mining Speed\n").formatted(Formatting.BOLD, Formatting.BLUE))
 				.append(Text.literal("Hardness").formatted(Formatting.DARK_RED))
-				.append(Text.literal(" (major)"));
+				.append(Text.literal(" + light density"));
 	}
 
 	private static Text miningTierPage() {
@@ -112,28 +116,26 @@ public class MetallurgyGuideItem extends Item {
 		return Text.empty()
 				.append(Text.literal("Durability\n\n").formatted(Formatting.BOLD, Formatting.BLUE))
 				.append(Text.literal("Toughness").formatted(Formatting.BLUE))
-				.append(Text.literal(" (major)\n"))
+				.append(Text.literal(" (dominant)\n"))
 				.append(Text.literal("Corrosion Resist.").formatted(Formatting.GREEN))
-				.append(Text.literal(" (minor)\n"))
+				.append(Text.literal(" (slight boost)\n"))
 				.append(Text.literal("Malleability").formatted(Formatting.DARK_GREEN))
-				.append(Text.literal(" (hurts!)"));
+				.append(Text.literal(" (slight penalty)\n\n"))
+				.append(Text.literal("Toughness scales cubically!\nZero toughness = zero durability.").formatted(Formatting.GRAY));
 	}
 
 	private static Text blendingPage() {
 		return Text.empty()
-				.append(Text.literal("Blending\n\n").formatted(Formatting.BOLD, Formatting.DARK_PURPLE))
-				.append(Text.literal("Head/blade vs shaft:\n\n"))
-				.append(Text.literal("Sword    ").formatted(Formatting.BOLD))
-				.append(Text.literal("70/30\n"))
-				.append(Text.literal("Pickaxe  ").formatted(Formatting.BOLD))
-				.append(Text.literal("60/40\n"))
-				.append(Text.literal("Axe      ").formatted(Formatting.BOLD))
-				.append(Text.literal("65/35\n"))
-				.append(Text.literal("Shovel   ").formatted(Formatting.BOLD))
-				.append(Text.literal("40/60\n"))
-				.append(Text.literal("Hoe      ").formatted(Formatting.BOLD))
-				.append(Text.literal("30/70\n"))
-				.append(Text.literal("Spear    ").formatted(Formatting.BOLD))
-				.append(Text.literal("50/50"));
+				.append(Text.literal("Diversity Bonus\n\n").formatted(Formatting.BOLD, Formatting.DARK_PURPLE))
+				.append(Text.literal("Alloys of 2+ materials\nget a stat multiplier:\n\n"))
+				.append(Text.literal("2 metals: ").formatted(Formatting.GRAY))
+				.append(Text.literal("+15%\n").formatted(Formatting.GREEN))
+				.append(Text.literal("3 metals: ").formatted(Formatting.GRAY))
+				.append(Text.literal("+30%\n").formatted(Formatting.GREEN))
+				.append(Text.literal("4 metals: ").formatted(Formatting.GRAY))
+				.append(Text.literal("+45%\n").formatted(Formatting.GREEN))
+				.append(Text.literal("5+ metals: ").formatted(Formatting.GRAY))
+				.append(Text.literal("+55%\n\n").formatted(Formatting.DARK_GREEN))
+				.append(Text.literal("Each metal must be 10%+ of the alloy to count.").formatted(Formatting.GRAY));
 	}
 }

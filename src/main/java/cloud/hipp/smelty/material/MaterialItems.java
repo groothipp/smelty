@@ -84,6 +84,35 @@ public class MaterialItems {
 		register(SmeltyItems.DIAMOND_ROD, SmeltyMaterial.DIAMOND, ROD_VOLUME, false);
 		register(SmeltyItems.NETHERITE_ROD, SmeltyMaterial.NETHERITE, ROD_VOLUME, false);
 
+		// Obsidian (vanilla block is meltable input)
+		register(Items.OBSIDIAN, SmeltyMaterial.OBSIDIAN, BLOCK_VOLUME, false);
+
+		// Obsidian cast items (smelty-specific outputs)
+		register(SmeltyItems.OBSIDIAN_INGOT, SmeltyMaterial.OBSIDIAN, INGOT_VOLUME, false);
+		register(SmeltyItems.OBSIDIAN_NUGGET, SmeltyMaterial.OBSIDIAN, NUGGET_VOLUME, false);
+		INGOT_MAP.put(SmeltyMaterial.OBSIDIAN, SmeltyItems.OBSIDIAN_INGOT);
+		NUGGET_MAP.put(SmeltyMaterial.OBSIDIAN, SmeltyItems.OBSIDIAN_NUGGET);
+
+		// Emerald (vanilla items are meltable inputs)
+		register(Items.EMERALD, SmeltyMaterial.EMERALD, INGOT_VOLUME, false);
+		register(Items.EMERALD_BLOCK, SmeltyMaterial.EMERALD, BLOCK_VOLUME, false);
+
+		// Emerald cast items (smelty-specific outputs)
+		register(SmeltyItems.CASTED_EMERALD, SmeltyMaterial.EMERALD, INGOT_VOLUME, false);
+		register(SmeltyItems.EMERALD_NUGGET, SmeltyMaterial.EMERALD, NUGGET_VOLUME, false);
+		register(SmeltyItems.CASTED_EMERALD_BLOCK, SmeltyMaterial.EMERALD, BLOCK_VOLUME, false);
+		INGOT_MAP.put(SmeltyMaterial.EMERALD, SmeltyItems.CASTED_EMERALD);
+		BLOCK_MAP.put(SmeltyMaterial.EMERALD, SmeltyItems.CASTED_EMERALD_BLOCK);
+		NUGGET_MAP.put(SmeltyMaterial.EMERALD, SmeltyItems.EMERALD_NUGGET);
+
+		// Plates
+		register(SmeltyItems.OBSIDIAN_PLATE, SmeltyMaterial.OBSIDIAN, PLATE_VOLUME, false);
+		register(SmeltyItems.EMERALD_PLATE, SmeltyMaterial.EMERALD, PLATE_VOLUME, false);
+
+		// Rods
+		register(SmeltyItems.OBSIDIAN_ROD, SmeltyMaterial.OBSIDIAN, ROD_VOLUME, false);
+		register(SmeltyItems.EMERALD_ROD, SmeltyMaterial.EMERALD, ROD_VOLUME, false);
+
 		// Molds (2 ingots of iron each)
 		register(SmeltyItems.INGOT_MOLD, SmeltyMaterial.IRON, PLATE_VOLUME, false);
 		register(SmeltyItems.NUGGET_MOLD, SmeltyMaterial.IRON, PLATE_VOLUME, false);

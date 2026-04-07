@@ -27,7 +27,6 @@ import net.minecraft.registry.tag.TagKey;
 import net.minecraft.world.World;
 
 import java.util.List;
-import java.util.Optional;
 
 public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 
@@ -113,23 +112,28 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 		AlloyComposition headComp = result.headComposition;
 		AlloyComposition handleComp = result.handleComposition; // null for sticks
 
-		// Blend properties (null handle = stick, head-only stats)
-		double[] blended = ToolStatCalculator.blendProperties(headComp, handleComp, toolType);
+		// Merge head and handle into a single composition for stat computation
+		// The tool's stats come from the combined alloy
+		AlloyComposition combined = new AlloyComposition();
+		combined.mergeFrom(headComp);
+		if (handleComp != null) {
+			combined.mergeFrom(handleComp);
+		}
 
-		// Compute stats
-		double attackDamage = ToolStatCalculator.computeAttackDamage(blended, toolType);
-		double attackSpeedMod = ToolStatCalculator.computeAttackSpeedModifier(blended, toolType);
-		double miningSpeed = ToolStatCalculator.computeMiningSpeed(blended, toolType);
-		int durability = ToolStatCalculator.computeDurability(blended);
-		TagKey<Block> incorrectTag = ToolStatCalculator.computeIncorrectBlocksTag(blended);
+		// Compute stats using new formula system
+		double attackDamage = ToolStatCalculator.computeAttackDamage(combined, toolType);
+		double attackSpeed = ToolStatCalculator.computeAttackSpeed(combined);
+		double miningSpeed = ToolStatCalculator.computeMiningSpeed(combined);
+		int durability = ToolStatCalculator.computeDurability(combined);
+		TagKey<Block> incorrectTag = ToolStatCalculator.computeIncorrectBlocksTag(combined);
 
 		// Get output item
 		Item outputItem = getOutputItem(toolType);
 		ItemStack stack = new ItemStack(outputItem);
 
 		// Store composition data for dynamic naming + tooltip stats
-		// Floats: [5 head composition percentages (coarse base), miningSpeed, miningTierIndex,
-		//          5 handle composition percentages (coarse base)]
+		// Floats: [head material percentages (7), miningSpeed, miningTierIndex,
+		//          handle material percentages (7), attackDamage, attackSpeed, tier]
 		AlloyComposition normalizedHead = headComp.toNormalized(AlloyComposition.ITEM_RATIO_BASE);
 		AlloyComposition normalizedHandle = handleComp != null
 				? handleComp.toNormalized(AlloyComposition.ITEM_RATIO_BASE) : null;
@@ -138,14 +142,14 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 			floats.add((float) normalizedHead.getMaterials().getOrDefault(mat, 0));
 		}
 		floats.add((float) miningSpeed);
-		floats.add((float) ToolStatCalculator.computeMiningTierIndex(blended));
+		floats.add((float) ToolStatCalculator.computeMiningTierIndex(combined));
 		for (SmeltyMaterial mat : SmeltyMaterial.values()) {
 			floats.add(normalizedHandle != null
 					? (float) normalizedHandle.getMaterials().getOrDefault(mat, 0) : 0f);
 		}
-		// [12] = attack damage (total), [13] = attack speed (total = 4.0 + modifier)
 		floats.add((float) attackDamage);
-		floats.add((float) (4.0 + attackSpeedMod));
+		floats.add((float) attackSpeed);
+		floats.add((float) combined.getTier());
 		int handleColor = normalizedHandle != null
 				? normalizedHandle.getBlendedColor() : STICK_COLOR;
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
@@ -159,6 +163,7 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 		// Set attribute modifiers (attack damage and speed)
 		// attackDamage from formula is total damage; modifier = total - 1.0 (base hand damage)
 		double attackDamageMod = Math.max(0, attackDamage - 1.0);
+		double attackSpeedMod = attackSpeed - 4.0;
 		stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
 				AttributeModifiersComponent.builder()
 						.add(EntityAttributes.ATTACK_DAMAGE,
@@ -279,6 +284,8 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 				|| item == Items.GOLD_INGOT
 				|| item == SmeltyItems.CASTED_DIAMOND
 				|| item == Items.NETHERITE_INGOT
+				|| item == SmeltyItems.OBSIDIAN_INGOT
+				|| item == SmeltyItems.CASTED_EMERALD
 				|| item == SmeltyItems.ALLOY_INGOT;
 	}
 
@@ -291,6 +298,8 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 				|| item == SmeltyItems.GOLD_ROD
 				|| item == SmeltyItems.DIAMOND_ROD
 				|| item == SmeltyItems.NETHERITE_ROD
+				|| item == SmeltyItems.OBSIDIAN_ROD
+				|| item == SmeltyItems.EMERALD_ROD
 				|| item == SmeltyItems.ALLOY_ROD;
 	}
 
@@ -340,6 +349,8 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 		if (item == Items.GOLD_INGOT || item == SmeltyItems.GOLD_ROD) return SmeltyMaterial.GOLD;
 		if (item == SmeltyItems.CASTED_DIAMOND || item == SmeltyItems.DIAMOND_ROD) return SmeltyMaterial.DIAMOND;
 		if (item == Items.NETHERITE_INGOT || item == SmeltyItems.NETHERITE_ROD) return SmeltyMaterial.NETHERITE;
+		if (item == SmeltyItems.OBSIDIAN_INGOT || item == SmeltyItems.OBSIDIAN_ROD) return SmeltyMaterial.OBSIDIAN;
+		if (item == SmeltyItems.CASTED_EMERALD || item == SmeltyItems.EMERALD_ROD) return SmeltyMaterial.EMERALD;
 		return null;
 	}
 

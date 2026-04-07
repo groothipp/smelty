@@ -40,7 +40,10 @@ public class CastingTableBlockEntity extends BlockEntity {
 	);
 
 	/** Items that can be placed as a pattern for diamond molds. */
-	private static final Set<Item> DIAMOND_PATTERN_ITEMS = Set.of(Items.DIAMOND);
+	private static final Set<Item> DIAMOND_PATTERN_ITEMS = Set.of(Items.DIAMOND, SmeltyItems.CASTED_DIAMOND);
+
+	/** Items that can be placed as a pattern for emerald molds. */
+	private static final Set<Item> EMERALD_PATTERN_ITEMS = Set.of(Items.EMERALD, SmeltyItems.CASTED_EMERALD);
 
 	/** Items that can be placed as a pattern for nugget molds. */
 	private static final Set<Item> NUGGET_PATTERN_ITEMS = Set.of(
@@ -150,11 +153,16 @@ public class CastingTableBlockEntity extends BlockEntity {
 		Item mold = patternItem.getItem();
 		boolean sourceIsPureDiamond = source.getMaterials().size() == 1
 				&& source.getMaterials().containsKey(SmeltyMaterial.DIAMOND);
+		boolean sourceIsPureEmerald = source.getMaterials().size() == 1
+				&& source.getMaterials().containsKey(SmeltyMaterial.EMERALD);
 		if (mold == SmeltyItems.DIAMOND_MOLD) {
 			return sourceIsPureDiamond;
 		}
+		if (mold == SmeltyItems.EMERALD_MOLD) {
+			return sourceIsPureEmerald;
+		}
 		if (mold == SmeltyItems.INGOT_MOLD) {
-			return !sourceIsPureDiamond;
+			return !sourceIsPureDiamond && !sourceIsPureEmerald;
 		}
 		return true;
 	}
@@ -270,6 +278,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 		return INGOT_PATTERN_ITEMS.contains(item)
 				|| NUGGET_PATTERN_ITEMS.contains(item)
 				|| DIAMOND_PATTERN_ITEMS.contains(item)
+				|| EMERALD_PATTERN_ITEMS.contains(item)
 				|| item == Items.STICK
 				|| isMold(item);
 	}
@@ -278,7 +287,8 @@ public class CastingTableBlockEntity extends BlockEntity {
 		return item == SmeltyItems.INGOT_MOLD
 				|| item == SmeltyItems.NUGGET_MOLD
 				|| item == SmeltyItems.ROD_MOLD
-				|| item == SmeltyItems.DIAMOND_MOLD;
+				|| item == SmeltyItems.DIAMOND_MOLD
+				|| item == SmeltyItems.EMERALD_MOLD;
 	}
 
 	/**
@@ -291,6 +301,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 		if (item == SmeltyItems.NUGGET_MOLD) return MaterialItems.NUGGET_VOLUME; // 20
 		if (item == SmeltyItems.ROD_MOLD) return MaterialItems.INGOT_VOLUME / 2; // 90
 		if (item == SmeltyItems.DIAMOND_MOLD) return MaterialItems.INGOT_VOLUME; // 180
+		if (item == SmeltyItems.EMERALD_MOLD) return MaterialItems.INGOT_VOLUME; // 180
 		return DEFAULT_CAPACITY; // raw patterns use plate capacity
 	}
 
@@ -336,9 +347,10 @@ public class CastingTableBlockEntity extends BlockEntity {
 	 */
 	private ItemStack createMoldOutput(Item mold) {
 		Map<SmeltyMaterial, Integer> materials = fluidComposition.getMaterials();
-		if (materials.size() == 1) {
+		boolean hasModifiers = !fluidComposition.getModifiers().isEmpty();
+		if (materials.size() == 1 && !hasModifiers) {
 			SmeltyMaterial material = materials.keySet().iterator().next();
-			if (mold == SmeltyItems.INGOT_MOLD || mold == SmeltyItems.DIAMOND_MOLD) {
+			if (mold == SmeltyItems.INGOT_MOLD || mold == SmeltyItems.DIAMOND_MOLD || mold == SmeltyItems.EMERALD_MOLD) {
 				Item ingot = SmeltyItems.getCastIngot(material);
 				if (ingot != null) return new ItemStack(ingot);
 			} else if (mold == SmeltyItems.NUGGET_MOLD) {
@@ -349,8 +361,8 @@ public class CastingTableBlockEntity extends BlockEntity {
 				if (rod != null) return new ItemStack(rod);
 			}
 		}
-		// Mixed alloy fallback
-		if (mold == SmeltyItems.INGOT_MOLD || mold == SmeltyItems.DIAMOND_MOLD) return createAlloyStack(SmeltyItems.ALLOY_INGOT);
+		// Mixed alloy or modified material fallback
+		if (mold == SmeltyItems.INGOT_MOLD || mold == SmeltyItems.DIAMOND_MOLD || mold == SmeltyItems.EMERALD_MOLD) return createAlloyStack(SmeltyItems.ALLOY_INGOT);
 		if (mold == SmeltyItems.NUGGET_MOLD) return createAlloyStack(SmeltyItems.ALLOY_NUGGET);
 		if (mold == SmeltyItems.ROD_MOLD) return createAlloyStack(SmeltyItems.ALLOY_ROD);
 		return createPlateOutput();
@@ -361,20 +373,22 @@ public class CastingTableBlockEntity extends BlockEntity {
 		if (INGOT_PATTERN_ITEMS.contains(item)) return SmeltyItems.INGOT_MOLD;
 		if (NUGGET_PATTERN_ITEMS.contains(item)) return SmeltyItems.NUGGET_MOLD;
 		if (DIAMOND_PATTERN_ITEMS.contains(item)) return SmeltyItems.DIAMOND_MOLD;
+		if (EMERALD_PATTERN_ITEMS.contains(item)) return SmeltyItems.EMERALD_MOLD;
 		if (item == Items.STICK) return SmeltyItems.ROD_MOLD;
 		return null;
 	}
 
 	private ItemStack createPlateOutput() {
 		Map<SmeltyMaterial, Integer> materials = fluidComposition.getMaterials();
-		if (materials.size() == 1) {
+		boolean hasModifiers = !fluidComposition.getModifiers().isEmpty();
+		if (materials.size() == 1 && !hasModifiers) {
 			SmeltyMaterial material = materials.keySet().iterator().next();
 			Item plate = SmeltyItems.getPlateForMaterial(material);
 			if (plate != null) {
 				return new ItemStack(plate);
 			}
 		}
-		// Mixed alloy → alloy plate
+		// Mixed alloy or modified material → alloy plate
 		return createAlloyStack(SmeltyItems.ALLOY_PLATE);
 	}
 
@@ -386,6 +400,9 @@ public class CastingTableBlockEntity extends BlockEntity {
 		java.util.List<Float> percentages = new java.util.ArrayList<>();
 		for (cloud.hipp.smelty.material.SmeltyMaterial mat : cloud.hipp.smelty.material.SmeltyMaterial.values()) {
 			percentages.add((float) normalized.getMaterials().getOrDefault(mat, 0));
+		}
+		for (cloud.hipp.smelty.material.Modifier mod : cloud.hipp.smelty.material.Modifier.values()) {
+			percentages.add((float) normalized.getModifiers().getOrDefault(mod, 0));
 		}
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
