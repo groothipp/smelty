@@ -27,6 +27,7 @@ public class ValveBlockEntityRenderer
 		implements BlockEntityRenderer<ValveBlockEntity, ValveBlockEntityRenderer.RenderState> {
 
 	private static final Identifier FLUID_TEXTURE = Identifier.ofVanilla("textures/block/smelty_molten_alloy.png");
+	private static final float V_FRAME = 1f / 20f;
 	private static final float OVERLAP = 0.005f;
 
 	public ValveBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
@@ -68,6 +69,7 @@ public class ValveBlockEntityRenderer
 				}
 			}
 		}
+		state.animationTime = entity.getWorld() != null ? entity.getWorld().getTime() + tickDelta : 0;
 	}
 
 	@Override
@@ -75,8 +77,11 @@ public class ValveBlockEntityRenderer
 			CameraRenderState camera) {
 		if (!state.activeDownwardFlow) return;
 
-		float v0 = 0;
-		float v1 = 1;
+		// Animation: 38-step pingpong cycle (frames 0-19-0), 2 ticks per frame
+		int step = ((int) state.animationTime / 2) % 38;
+		int frame = step < 20 ? step : 38 - step;
+		float v0 = frame * V_FRAME;
+		float v1 = v0 + V_FRAME;
 
 		// Stream position at the nozzle opening
 		// Nozzle model coords (facing=north): [5,4,8]-[11,9,11], stream at center-bottom
@@ -187,5 +192,6 @@ public class ValveBlockEntityRenderer
 		public int waterfallDepth; // 0 = none, 1-3 = blocks to target
 		public boolean activeDownwardFlow;
 		public int flowColor;
+		public float animationTime;
 	}
 }

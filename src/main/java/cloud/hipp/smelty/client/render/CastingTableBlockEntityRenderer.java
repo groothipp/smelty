@@ -27,6 +27,7 @@ public class CastingTableBlockEntityRenderer
 		implements BlockEntityRenderer<CastingTableBlockEntity, CastingTableBlockEntityRenderer.RenderState> {
 
 	private static final Identifier FLUID_TEXTURE = Identifier.ofVanilla("textures/block/smelty_molten_alloy.png");
+	private static final float V_FRAME = 1f / 20f;
 
 	// Basin geometry (from casting_table.json)
 	private static final float BX1 = 2f / 16f, BZ1 = 2f / 16f;
@@ -56,6 +57,7 @@ public class CastingTableBlockEntityRenderer
 		state.fillRatio = entity.getFillRatio();
 		state.color = entity.getColor();
 		state.solidified = entity.isSolidified();
+		state.animationTime = entity.getWorld() != null ? entity.getWorld().getTime() + tickDelta : 0;
 		// Pattern texture: available whenever there's a pattern and not solidified
 		// (used on empty table AND during filling to mask fluid)
 		state.patternTexture = null;
@@ -182,8 +184,10 @@ public class CastingTableBlockEntityRenderer
 		float y2 = y1 + state.fillRatio * (1f / 16f) - patternOffset;
 
 		int color = state.color | 0xDD000000;
-		float v0 = 0;
-		float v1 = 1;
+		int step = ((int) state.animationTime / 2) % 38;
+		int frame = step < 20 ? step : 38 - step;
+		float v0 = frame * V_FRAME;
+		float v1 = v0 + V_FRAME;
 
 		var fluidLayer = RenderLayers.entitySolid(FLUID_TEXTURE);
 		matrices.push();
@@ -244,6 +248,7 @@ public class CastingTableBlockEntityRenderer
 		public float fillRatio;
 		public int color;
 		public boolean solidified;
+		public float animationTime;
 		// Pattern (available during empty table + filling, not solidified)
 		public Identifier patternTexture;
 		// Solidified output
