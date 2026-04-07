@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "PPP",
+    "PDP",
+    "PPP"
+  ],
+  "key": {
+    "P": "#minecraft:planks",
+    "D": "#smelty:diamonds"
+  },
+  "result": {
+    "id": "minecraft:jukebox"
+  }
+}

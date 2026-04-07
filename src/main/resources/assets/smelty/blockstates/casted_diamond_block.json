@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "smelty:block/casted_diamond_block" }
+  }
+}

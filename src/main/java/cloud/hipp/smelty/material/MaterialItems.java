@@ -50,15 +50,16 @@ public class MaterialItems {
 		BLOCK_MAP.put(SmeltyMaterial.GOLD, Items.GOLD_BLOCK);
 		NUGGET_MAP.put(SmeltyMaterial.GOLD, Items.GOLD_NUGGET);
 
-		// Diamond
+		// Diamond (vanilla items are meltable inputs)
 		register(Items.DIAMOND, SmeltyMaterial.DIAMOND, INGOT_VOLUME, false);
 		register(Items.DIAMOND_BLOCK, SmeltyMaterial.DIAMOND, BLOCK_VOLUME, false);
-		INGOT_MAP.put(SmeltyMaterial.DIAMOND, Items.DIAMOND);
-		BLOCK_MAP.put(SmeltyMaterial.DIAMOND, Items.DIAMOND_BLOCK);
 
-		// Diamond cast items (smelty-specific)
-		register(SmeltyItems.DIAMOND_INGOT, SmeltyMaterial.DIAMOND, INGOT_VOLUME, false);
+		// Diamond cast items (smelty-specific outputs)
+		register(SmeltyItems.CASTED_DIAMOND, SmeltyMaterial.DIAMOND, INGOT_VOLUME, false);
 		register(SmeltyItems.DIAMOND_NUGGET, SmeltyMaterial.DIAMOND, NUGGET_VOLUME, false);
+		register(SmeltyItems.CASTED_DIAMOND_BLOCK, SmeltyMaterial.DIAMOND, BLOCK_VOLUME, false);
+		INGOT_MAP.put(SmeltyMaterial.DIAMOND, SmeltyItems.CASTED_DIAMOND);
+		BLOCK_MAP.put(SmeltyMaterial.DIAMOND, SmeltyItems.CASTED_DIAMOND_BLOCK);
 		NUGGET_MAP.put(SmeltyMaterial.DIAMOND, SmeltyItems.DIAMOND_NUGGET);
 
 		// Netherite

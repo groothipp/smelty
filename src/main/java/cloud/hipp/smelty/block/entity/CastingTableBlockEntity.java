@@ -36,8 +36,11 @@ public class CastingTableBlockEntity extends BlockEntity {
 	/** Items that can be placed as a pattern for ingot molds. */
 	private static final Set<Item> INGOT_PATTERN_ITEMS = Set.of(
 			Items.COPPER_INGOT, Items.IRON_INGOT, Items.GOLD_INGOT,
-			Items.DIAMOND, Items.NETHERITE_INGOT
+			Items.NETHERITE_INGOT
 	);
+
+	/** Items that can be placed as a pattern for diamond molds. */
+	private static final Set<Item> DIAMOND_PATTERN_ITEMS = Set.of(Items.DIAMOND);
 
 	/** Items that can be placed as a pattern for nugget molds. */
 	private static final Set<Item> NUGGET_PATTERN_ITEMS = Set.of(
@@ -123,6 +126,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 	 */
 	public int addFluid(AlloyComposition source, int amountMl) {
 		if (solidified || cooldownTicks >= 0) return 0;
+		if (!acceptsFluid(source)) return 0;
 
 		int space = capacity - fluidLevelMl;
 		int accepted = Math.min(amountMl, space);
@@ -135,6 +139,24 @@ public class CastingTableBlockEntity extends BlockEntity {
 		needsSync = true;
 		markDirty();
 		return actualVolume;
+	}
+
+	/**
+	 * Check whether the current mold accepts the given fluid.
+	 * Diamond mold only accepts pure diamond; ingot mold rejects pure diamond.
+	 */
+	private boolean acceptsFluid(AlloyComposition source) {
+		if (!hasPattern()) return true;
+		Item mold = patternItem.getItem();
+		boolean sourceIsPureDiamond = source.getMaterials().size() == 1
+				&& source.getMaterials().containsKey(SmeltyMaterial.DIAMOND);
+		if (mold == SmeltyItems.DIAMOND_MOLD) {
+			return sourceIsPureDiamond;
+		}
+		if (mold == SmeltyItems.INGOT_MOLD) {
+			return !sourceIsPureDiamond;
+		}
+		return true;
 	}
 
 	public void serverTick(ServerWorld world) {
@@ -247,6 +269,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 		Item item = stack.getItem();
 		return INGOT_PATTERN_ITEMS.contains(item)
 				|| NUGGET_PATTERN_ITEMS.contains(item)
+				|| DIAMOND_PATTERN_ITEMS.contains(item)
 				|| item == Items.STICK
 				|| isMold(item);
 	}
@@ -254,7 +277,8 @@ public class CastingTableBlockEntity extends BlockEntity {
 	public static boolean isMold(Item item) {
 		return item == SmeltyItems.INGOT_MOLD
 				|| item == SmeltyItems.NUGGET_MOLD
-				|| item == SmeltyItems.ROD_MOLD;
+				|| item == SmeltyItems.ROD_MOLD
+				|| item == SmeltyItems.DIAMOND_MOLD;
 	}
 
 	/**
@@ -266,6 +290,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 		if (item == SmeltyItems.INGOT_MOLD) return MaterialItems.INGOT_VOLUME;   // 180
 		if (item == SmeltyItems.NUGGET_MOLD) return MaterialItems.NUGGET_VOLUME; // 20
 		if (item == SmeltyItems.ROD_MOLD) return MaterialItems.INGOT_VOLUME / 2; // 90
+		if (item == SmeltyItems.DIAMOND_MOLD) return MaterialItems.INGOT_VOLUME; // 180
 		return DEFAULT_CAPACITY; // raw patterns use plate capacity
 	}
 
@@ -313,7 +338,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 		Map<SmeltyMaterial, Integer> materials = fluidComposition.getMaterials();
 		if (materials.size() == 1) {
 			SmeltyMaterial material = materials.keySet().iterator().next();
-			if (mold == SmeltyItems.INGOT_MOLD) {
+			if (mold == SmeltyItems.INGOT_MOLD || mold == SmeltyItems.DIAMOND_MOLD) {
 				Item ingot = SmeltyItems.getCastIngot(material);
 				if (ingot != null) return new ItemStack(ingot);
 			} else if (mold == SmeltyItems.NUGGET_MOLD) {
@@ -325,7 +350,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 			}
 		}
 		// Mixed alloy fallback
-		if (mold == SmeltyItems.INGOT_MOLD) return createAlloyStack(SmeltyItems.ALLOY_INGOT);
+		if (mold == SmeltyItems.INGOT_MOLD || mold == SmeltyItems.DIAMOND_MOLD) return createAlloyStack(SmeltyItems.ALLOY_INGOT);
 		if (mold == SmeltyItems.NUGGET_MOLD) return createAlloyStack(SmeltyItems.ALLOY_NUGGET);
 		if (mold == SmeltyItems.ROD_MOLD) return createAlloyStack(SmeltyItems.ALLOY_ROD);
 		return createPlateOutput();
@@ -335,6 +360,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 		Item item = pattern.getItem();
 		if (INGOT_PATTERN_ITEMS.contains(item)) return SmeltyItems.INGOT_MOLD;
 		if (NUGGET_PATTERN_ITEMS.contains(item)) return SmeltyItems.NUGGET_MOLD;
+		if (DIAMOND_PATTERN_ITEMS.contains(item)) return SmeltyItems.DIAMOND_MOLD;
 		if (item == Items.STICK) return SmeltyItems.ROD_MOLD;
 		return null;
 	}

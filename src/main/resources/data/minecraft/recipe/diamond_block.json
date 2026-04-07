@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "DDD",
+    "DDD",
+    "DDD"
+  ],
+  "key": {
+    "D": "#smelty:diamonds"
+  },
+  "result": {
+    "id": "minecraft:diamond_block"
+  }
+}

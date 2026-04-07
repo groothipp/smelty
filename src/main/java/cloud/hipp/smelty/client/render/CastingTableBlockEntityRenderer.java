@@ -39,6 +39,7 @@ public class CastingTableBlockEntityRenderer
 	private static final Identifier INGOT_MOLD_TEX = Identifier.of("smelty", "textures/item/ingot_mold.png");
 	private static final Identifier NUGGET_MOLD_TEX = Identifier.of("smelty", "textures/item/nugget_mold.png");
 	private static final Identifier ROD_MOLD_TEX = Identifier.of("smelty", "textures/item/rod_mold.png");
+	private static final Identifier DIAMOND_MOLD_TEX = Identifier.of("smelty", "textures/item/diamond_mold.png");
 
 	public CastingTableBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
 	}
@@ -77,6 +78,7 @@ public class CastingTableBlockEntityRenderer
 		if (item == SmeltyItems.INGOT_MOLD) return INGOT_MOLD_TEX;
 		if (item == SmeltyItems.NUGGET_MOLD) return NUGGET_MOLD_TEX;
 		if (item == SmeltyItems.ROD_MOLD) return ROD_MOLD_TEX;
+		if (item == SmeltyItems.DIAMOND_MOLD) return DIAMOND_MOLD_TEX;
 		if (item == Items.COPPER_INGOT) return Identifier.ofVanilla("textures/item/copper_ingot.png");
 		if (item == Items.IRON_INGOT) return Identifier.ofVanilla("textures/item/iron_ingot.png");
 		if (item == Items.GOLD_INGOT) return Identifier.ofVanilla("textures/item/gold_ingot.png");
@@ -92,6 +94,7 @@ public class CastingTableBlockEntityRenderer
 		if (moldItem == SmeltyItems.INGOT_MOLD) return INGOT_MOLD_TEX;
 		if (moldItem == SmeltyItems.NUGGET_MOLD) return NUGGET_MOLD_TEX;
 		if (moldItem == SmeltyItems.ROD_MOLD) return ROD_MOLD_TEX;
+		if (moldItem == SmeltyItems.DIAMOND_MOLD) return DIAMOND_MOLD_TEX;
 		return null;
 	}
 
@@ -106,7 +109,7 @@ public class CastingTableBlockEntityRenderer
 		if (item == Items.GOLD_INGOT || item == Items.GOLD_NUGGET || item == SmeltyItems.GOLD_PLATE || item == SmeltyItems.GOLD_ROD)
 			return Identifier.ofVanilla("textures/block/gold_block.png");
 		// Diamond
-		if (item == Items.DIAMOND || item == SmeltyItems.DIAMOND_INGOT || item == SmeltyItems.DIAMOND_NUGGET
+		if (item == Items.DIAMOND || item == SmeltyItems.CASTED_DIAMOND || item == SmeltyItems.DIAMOND_NUGGET
 				|| item == SmeltyItems.DIAMOND_PLATE || item == SmeltyItems.DIAMOND_ROD)
 			return Identifier.ofVanilla("textures/block/diamond_block.png");
 		// Netherite

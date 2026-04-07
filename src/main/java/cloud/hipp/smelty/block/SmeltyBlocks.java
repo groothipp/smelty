@@ -90,6 +90,15 @@ public class SmeltyBlocks {
 					.luminance(state -> state.get(AnalysisBenchBlock.HAS_PLATE) ? 10 : 0)
 	);
 
+	public static final Block CASTED_DIAMOND_BLOCK = register("casted_diamond_block",
+			Block::new,
+			AbstractBlock.Settings.create()
+					.mapColor(MapColor.DIAMOND_BLUE)
+					.strength(5.0F, 6.0F)
+					.sounds(BlockSoundGroup.METAL)
+					.requiresTool()
+	);
+
 	public static final Block SOLID_ALLOY = register("solid_alloy",
 			SolidAlloyBlock::new,
 			AbstractBlock.Settings.create()

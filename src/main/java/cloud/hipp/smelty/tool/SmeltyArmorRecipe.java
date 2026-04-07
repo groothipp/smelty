@@ -187,7 +187,7 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 		return item == Items.COPPER_INGOT
 				|| item == Items.IRON_INGOT
 				|| item == Items.GOLD_INGOT
-				|| item == SmeltyItems.DIAMOND_INGOT
+				|| item == SmeltyItems.CASTED_DIAMOND
 				|| item == Items.NETHERITE_INGOT
 				|| item == SmeltyItems.ALLOY_INGOT;
 	}
@@ -226,7 +226,7 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 		if (item == Items.COPPER_INGOT) return SmeltyMaterial.COPPER;
 		if (item == Items.IRON_INGOT) return SmeltyMaterial.IRON;
 		if (item == Items.GOLD_INGOT) return SmeltyMaterial.GOLD;
-		if (item == SmeltyItems.DIAMOND_INGOT) return SmeltyMaterial.DIAMOND;
+		if (item == SmeltyItems.CASTED_DIAMOND) return SmeltyMaterial.DIAMOND;
 		if (item == Items.NETHERITE_INGOT) return SmeltyMaterial.NETHERITE;
 		return null;
 	}

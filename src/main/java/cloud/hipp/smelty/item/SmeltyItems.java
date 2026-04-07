@@ -31,6 +31,7 @@ public class SmeltyItems {
 	public static final Item CASTING_BASIN = Items.register(SmeltyBlocks.CASTING_BASIN);
 	public static final Item CASTING_TABLE = Items.register(SmeltyBlocks.CASTING_TABLE);
 	public static final Item ANALYSIS_BENCH = Items.register(SmeltyBlocks.ANALYSIS_BENCH);
+	public static final Item CASTED_DIAMOND_BLOCK = Items.register(SmeltyBlocks.CASTED_DIAMOND_BLOCK);
 	public static final Item SOLID_ALLOY = Items.register(SmeltyBlocks.SOLID_ALLOY);
 
 	// Plates (one per material + alloy for mixed compositions)
@@ -48,9 +49,10 @@ public class SmeltyItems {
 	public static final Item INGOT_MOLD = register("ingot_mold");
 	public static final Item NUGGET_MOLD = register("nugget_mold");
 	public static final Item ROD_MOLD = register("rod_mold");
+	public static final Item DIAMOND_MOLD = register("diamond_mold");
 
-	// Cast ingots (materials without vanilla ingots)
-	public static final Item DIAMOND_INGOT = register("diamond_ingot");
+	// Cast diamonds (produced by casting pure diamond through diamond mold)
+	public static final Item CASTED_DIAMOND = register("casted_diamond");
 
 	// Cast nuggets (materials without vanilla nuggets)
 	public static final Item DIAMOND_NUGGET = register("diamond_nugget");
@@ -97,7 +99,7 @@ public class SmeltyItems {
 		CAST_INGOT_MAP.put(SmeltyMaterial.COPPER, Items.COPPER_INGOT);
 		CAST_INGOT_MAP.put(SmeltyMaterial.IRON, Items.IRON_INGOT);
 		CAST_INGOT_MAP.put(SmeltyMaterial.GOLD, Items.GOLD_INGOT);
-		CAST_INGOT_MAP.put(SmeltyMaterial.DIAMOND, DIAMOND_INGOT);
+		CAST_INGOT_MAP.put(SmeltyMaterial.DIAMOND, CASTED_DIAMOND);
 		CAST_INGOT_MAP.put(SmeltyMaterial.NETHERITE, Items.NETHERITE_INGOT);
 
 		CAST_NUGGET_MAP.put(SmeltyMaterial.IRON, Items.IRON_NUGGET);
@@ -188,6 +190,7 @@ public class SmeltyItems {
 			entries.add(CASTING_BASIN);
 			entries.add(CASTING_TABLE);
 			entries.add(ANALYSIS_BENCH);
+			entries.add(CASTED_DIAMOND_BLOCK);
 			entries.add(SOLID_ALLOY);
 		});
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.INGREDIENTS).register(entries -> {
@@ -197,7 +200,7 @@ public class SmeltyItems {
 			entries.add(DIAMOND_PLATE);
 			entries.add(NETHERITE_PLATE);
 			entries.add(ALLOY_PLATE);
-			entries.add(DIAMOND_INGOT);
+			entries.add(CASTED_DIAMOND);
 			entries.add(DIAMOND_NUGGET);
 			entries.add(NETHERITE_NUGGET);
 			entries.add(COPPER_ROD);
@@ -211,6 +214,7 @@ public class SmeltyItems {
 			entries.add(INGOT_MOLD);
 			entries.add(NUGGET_MOLD);
 			entries.add(ROD_MOLD);
+			entries.add(DIAMOND_MOLD);
 			entries.add(METALLURGY_GUIDE);
 		});
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> {

@@ -193,6 +193,12 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 					volumePerItem *= 2;
 				} else if (stack.isOf(Items.DIAMOND) && serverWorld.getRandom().nextFloat() < 0.3f) {
 					volumePerItem *= 2;
+				} else if (stack.isOf(Items.DIAMOND_BLOCK)) {
+					for (int roll = 0; roll < 9; roll++) {
+						if (serverWorld.getRandom().nextFloat() < 0.3f) {
+							volumePerItem += MaterialItems.INGOT_VOLUME;
+						}
+					}
 				}
 
 				if (currentVolume + volumePerItem > maxVolume) break;

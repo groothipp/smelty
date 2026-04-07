@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " B ",
+    "DOD",
+    "OOO"
+  ],
+  "key": {
+    "B": "minecraft:book",
+    "D": "#smelty:diamonds",
+    "O": "minecraft:obsidian"
+  },
+  "result": {
+    "id": "minecraft:enchanting_table"
+  }
+}

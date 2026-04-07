@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:diamond",
+    "smelty:casted_diamond"
+  ]
+}
