@@ -11,10 +11,8 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.shape.VoxelShape;
@@ -70,9 +68,8 @@ public class CastingTableBlock extends BlockWithEntity {
 
 	@Override
 	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-		if (world.getBlockEntity(pos) instanceof CastingTableBlockEntity table) {
-			table.dropContents(world);
-		}
+		// Drops are handled by CastingTableBlockEntity.onBlockReplaced(),
+		// which is called before the block entity is removed from the chunk.
 		super.onStateReplaced(state, world, pos, moved);
 	}
 }

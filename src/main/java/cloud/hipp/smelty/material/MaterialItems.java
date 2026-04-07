@@ -16,6 +16,7 @@ public class MaterialItems {
 	public static final int BLOCK_VOLUME = UNITS_PER_INGOT * 9;   // 1620 (9 ingots)
 	public static final int INGOT_VOLUME = UNITS_PER_INGOT;       // 180
 	public static final int NUGGET_VOLUME = UNITS_PER_INGOT / 9;  // 20
+	public static final int ROD_VOLUME = UNITS_PER_INGOT / 2;     // 90 (half ingot)
 	public static final int PLATE_VOLUME = UNITS_PER_INGOT * 2;   // 360 (2 ingots)
 
 	private static final Map<Item, MaterialEntry> ITEM_MAP = new HashMap<>();
@@ -74,6 +75,13 @@ public class MaterialItems {
 		register(SmeltyItems.GOLD_PLATE, SmeltyMaterial.GOLD, PLATE_VOLUME, false);
 		register(SmeltyItems.DIAMOND_PLATE, SmeltyMaterial.DIAMOND, PLATE_VOLUME, false);
 		register(SmeltyItems.NETHERITE_PLATE, SmeltyMaterial.NETHERITE, PLATE_VOLUME, false);
+
+		// Rods (half ingot each)
+		register(SmeltyItems.COPPER_ROD, SmeltyMaterial.COPPER, ROD_VOLUME, false);
+		register(SmeltyItems.IRON_ROD, SmeltyMaterial.IRON, ROD_VOLUME, false);
+		register(SmeltyItems.GOLD_ROD, SmeltyMaterial.GOLD, ROD_VOLUME, false);
+		register(SmeltyItems.DIAMOND_ROD, SmeltyMaterial.DIAMOND, ROD_VOLUME, false);
+		register(SmeltyItems.NETHERITE_ROD, SmeltyMaterial.NETHERITE, ROD_VOLUME, false);
 
 		// Molds (2 ingots of iron each)
 		register(SmeltyItems.INGOT_MOLD, SmeltyMaterial.IRON, PLATE_VOLUME, false);

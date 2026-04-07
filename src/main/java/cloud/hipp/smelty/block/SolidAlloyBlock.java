@@ -1,21 +1,15 @@
 package cloud.hipp.smelty.block;
 
 import cloud.hipp.smelty.block.entity.SolidAlloyBlockEntity;
-import cloud.hipp.smelty.block.entity.SmeltyBlockEntities;
-import cloud.hipp.smelty.material.AlloyRegistry;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.BlockWithEntity;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.CustomModelDataComponent;
-import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.TypedEntityData;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
@@ -53,36 +47,8 @@ public class SolidAlloyBlock extends BlockWithEntity {
 
 	@Override
 	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-		BlockEntity be = world.getBlockEntity(pos);
-		if (be instanceof SolidAlloyBlockEntity solidBe && !solidBe.getComposition().isEmpty()) {
-			ItemStack stack = new ItemStack(this);
-			// Use temp BE at ORIGIN so block position doesn't affect item NBT (enables stacking)
-			SolidAlloyBlockEntity tempBe = new SolidAlloyBlockEntity(BlockPos.ORIGIN, SmeltyBlocks.SOLID_ALLOY.getDefaultState());
-			tempBe.setComposition(solidBe.getComposition());
-			tempBe.setVolumeMl(solidBe.getVolumeMl());
-			stack.set(DataComponentTypes.BLOCK_ENTITY_DATA,
-					TypedEntityData.create(SmeltyBlockEntities.SOLID_ALLOY,
-							tempBe.createNbt(world.getRegistryManager())));
-			cloud.hipp.smelty.material.AlloyComposition normalizedComp =
-					solidBe.getComposition().toNormalized(cloud.hipp.smelty.material.AlloyComposition.ITEM_RATIO_BASE);
-			java.util.List<Float> percentages = new java.util.ArrayList<>();
-			for (cloud.hipp.smelty.material.SmeltyMaterial mat : cloud.hipp.smelty.material.SmeltyMaterial.values()) {
-				percentages.add((float) normalizedComp.getMaterials().getOrDefault(mat, 0));
-			}
-			stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
-					new CustomModelDataComponent(
-							percentages, java.util.List.of(), java.util.List.of(),
-							java.util.List.of(normalizedComp.getBlendedColor())));
-			AlloyRegistry registry = AlloyRegistry.get(world);
-			String alloyName = registry.getAlloyName(solidBe.getComposition());
-			if (alloyName != null) {
-				stack.set(DataComponentTypes.CUSTOM_NAME,
-						Text.literal(alloyName + " Block").styled(s -> s.withItalic(false)));
-			}
-			ItemEntity itemEntity = new ItemEntity(world,
-					pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
-			world.spawnEntity(itemEntity);
-		}
+		// Drops are handled by SolidAlloyBlockEntity.onBlockReplaced(),
+		// which is called before the block entity is removed from the chunk.
 		super.onStateReplaced(state, world, pos, moved);
 	}
 }

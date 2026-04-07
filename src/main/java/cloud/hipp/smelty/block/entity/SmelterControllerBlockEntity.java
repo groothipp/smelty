@@ -6,6 +6,7 @@ import cloud.hipp.smelty.block.SmelterControllerBlock;
 import cloud.hipp.smelty.block.SmeltyBlocks;
 import cloud.hipp.smelty.block.SolidAlloyBlock;
 import cloud.hipp.smelty.block.ValveBlock;
+import cloud.hipp.smelty.item.SmeltyItems;
 import cloud.hipp.smelty.material.AlloyComposition;
 import cloud.hipp.smelty.material.MaterialItems;
 import cloud.hipp.smelty.material.SmeltyMaterial;
@@ -17,6 +18,9 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.CustomModelDataComponent;
+import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DamageType;
@@ -170,6 +174,12 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 				continue;
 			}
 
+			int alloyVolume = getAlloyItemVolume(stack);
+			if (alloyVolume > 0) {
+				processAlloyItem(serverWorld, itemEntity, stack, alloyVolume);
+				continue;
+			}
+
 			MaterialItems.MaterialEntry entry = MaterialItems.lookup(stack);
 			if (entry == null) continue;
 
@@ -238,6 +248,61 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 
 			// Reconstruct absolute volumes from normalized ratios
 			AlloyComposition absolute = comp.toNormalized(volumeMl);
+
+			for (Map.Entry<SmeltyMaterial, Integer> entry : absolute.getMaterials().entrySet()) {
+				if (canMelt(entry.getKey())) {
+					moltenAlloy.addMaterial(entry.getKey(), entry.getValue());
+				} else {
+					unmeltedMaterials.addMaterial(entry.getKey(), entry.getValue());
+				}
+			}
+
+			processed++;
+			updateCurrentVolume();
+		}
+
+		if (processed > 0) {
+			serverWorld.playSound(null, itemEntity.getX(), itemEntity.getY(), itemEntity.getZ(),
+					SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundCategory.BLOCKS, 0.5f, 2.0f + serverWorld.getRandom().nextFloat() * 0.4f);
+			serverWorld.spawnParticles(ParticleTypes.FLAME,
+					itemEntity.getX(), itemEntity.getY() + 0.2, itemEntity.getZ(),
+					3 + processed, 0.15, 0.1, 0.15, 0.02);
+			if (processed >= itemCount) {
+				itemEntity.discard();
+			} else {
+				stack.decrement(processed);
+			}
+			checkSolidification();
+			updateCurrentVolume();
+			updateCachedColor();
+			markDirty();
+			needsClientSync = true;
+		}
+	}
+
+	private static int getAlloyItemVolume(ItemStack stack) {
+		Item item = stack.getItem();
+		if (item == SmeltyItems.ALLOY_INGOT) return MaterialItems.INGOT_VOLUME;
+		if (item == SmeltyItems.ALLOY_NUGGET) return MaterialItems.NUGGET_VOLUME;
+		if (item == SmeltyItems.ALLOY_ROD) return MaterialItems.ROD_VOLUME;
+		if (item == SmeltyItems.ALLOY_PLATE) return MaterialItems.PLATE_VOLUME;
+		return 0;
+	}
+
+	private void processAlloyItem(ServerWorld serverWorld, ItemEntity itemEntity, ItemStack stack, int volumeMl) {
+		CustomModelDataComponent cmd = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+		if (cmd == null || cmd.floats().isEmpty()) return;
+
+		AlloyComposition itemComp = AlloyComposition.fromPercentages(cmd.floats());
+		if (itemComp.isEmpty()) return;
+
+		int itemCount = stack.getCount();
+		int processed = 0;
+
+		for (int i = 0; i < itemCount; i++) {
+			if (currentVolume + volumeMl > maxVolume) break;
+
+			AlloyComposition absolute = itemComp.toNormalized(volumeMl);
 
 			for (Map.Entry<SmeltyMaterial, Integer> entry : absolute.getMaterials().entrySet()) {
 				if (canMelt(entry.getKey())) {
@@ -511,7 +576,7 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 						be.minX + be.width - 1, be.minY + be.height, be.minZ + be.depth - 1);
 				for (ItemEntity item : serverWorld.getEntitiesByClass(ItemEntity.class, interiorBox, e -> true)) {
 					ItemStack itemStack = item.getStack();
-					if (!itemStack.isOf(SmeltyBlocks.SOLID_ALLOY.asItem()) && MaterialItems.lookup(itemStack) == null) {
+					if (!itemStack.isOf(SmeltyBlocks.SOLID_ALLOY.asItem()) && MaterialItems.lookup(itemStack) == null && getAlloyItemVolume(itemStack) == 0) {
 						serverWorld.playSound(null, item.getX(), item.getY(), item.getZ(),
 								SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundCategory.BLOCKS, 0.5f, 2.0f + serverWorld.getRandom().nextFloat() * 0.4f);
 						item.discard();

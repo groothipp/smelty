@@ -166,7 +166,15 @@ public class AnalysisBenchBlockEntity extends BlockEntity implements ExtendedScr
 		return new AnalysisBenchScreenHandler(syncId, playerInventory, buildScreenData());
 	}
 
-	public void dropContents(ServerWorld world) {
+	@Override
+	public void onBlockReplaced(BlockPos pos, BlockState state) {
+		super.onBlockReplaced(pos, state);
+		if (world instanceof ServerWorld serverWorld) {
+			dropContents(serverWorld);
+		}
+	}
+
+	private void dropContents(ServerWorld world) {
 		if (!plateItem.isEmpty()) {
 			ItemEntity itemEntity = new ItemEntity(world,
 					pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, plateItem.copy());

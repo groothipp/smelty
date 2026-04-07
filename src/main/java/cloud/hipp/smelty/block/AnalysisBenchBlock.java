@@ -92,9 +92,8 @@ public class AnalysisBenchBlock extends BlockWithEntity {
 
 	@Override
 	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-		if (world.getBlockEntity(pos) instanceof AnalysisBenchBlockEntity bench) {
-			bench.dropContents(world);
-		}
+		// Drops are handled by AnalysisBenchBlockEntity.onBlockReplaced(),
+		// which is called before the block entity is removed from the chunk.
 		super.onStateReplaced(state, world, pos, moved);
 	}
 

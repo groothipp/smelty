@@ -402,10 +402,18 @@ public class CastingTableBlockEntity extends BlockEntity {
 		}
 	}
 
+	@Override
+	public void onBlockReplaced(BlockPos pos, BlockState state) {
+		super.onBlockReplaced(pos, state);
+		if (world instanceof ServerWorld serverWorld) {
+			dropContents(serverWorld);
+		}
+	}
+
 	/**
 	 * Drop contents when the block is broken.
 	 */
-	public void dropContents(ServerWorld world) {
+	private void dropContents(ServerWorld world) {
 		if (hasPattern()) {
 			Item patItem = patternItem.getItem();
 			if (solidified && !fluidComposition.isEmpty() && isMold(patItem)) {
