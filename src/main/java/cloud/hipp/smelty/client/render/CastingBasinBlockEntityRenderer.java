@@ -18,9 +18,8 @@ import org.joml.Matrix4f;
 public class CastingBasinBlockEntityRenderer
 		implements BlockEntityRenderer<CastingBasinBlockEntity, CastingBasinBlockEntityRenderer.RenderState> {
 
-	private static final Identifier FLUID_TEXTURE = Identifier.of("smelty", "textures/block/molten_alloy_still.png");
+	private static final Identifier FLUID_TEXTURE = Identifier.ofVanilla("textures/block/smelty_molten_alloy.png");
 	private static final Identifier SOLID_TEXTURE = Identifier.ofVanilla("textures/block/iron_block.png");
-	private static final float V_FRAME = 1f / 20f;
 
 	public CastingBasinBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
 	}
@@ -39,7 +38,6 @@ public class CastingBasinBlockEntityRenderer
 		state.fillRatio = entity.getFillRatio();
 		state.color = entity.getColor();
 		state.solidified = entity.isSolidified();
-		state.animationTime = entity.getWorld() != null ? entity.getWorld().getTime() + tickDelta : 0;
 	}
 
 	@Override
@@ -61,17 +59,8 @@ public class CastingBasinBlockEntityRenderer
 		int color = state.color | alpha;
 
 		Identifier texture = state.solidified ? SOLID_TEXTURE : FLUID_TEXTURE;
-		// Animation: 38-step pingpong cycle (frames 0-19-0), 2 ticks per frame
-		float v0, vMax;
-		if (state.solidified) {
-			v0 = 0;
-			vMax = 1f;
-		} else {
-			int step = ((int) state.animationTime / 2) % 38;
-			int frame = step < 20 ? step : 38 - step;
-			v0 = frame * V_FRAME;
-			vMax = v0 + V_FRAME;
-		}
+		float v0 = 0;
+		float vMax = 1f;
 		var renderLayer = RenderLayers.entitySolid(texture);
 		matrices.push();
 		queue.submitCustom(matrices, renderLayer, (entry, vc) -> {
@@ -122,6 +111,5 @@ public class CastingBasinBlockEntityRenderer
 		public float fillRatio;
 		public int color;
 		public boolean solidified;
-		public float animationTime;
 	}
 }

@@ -25,8 +25,7 @@ import org.joml.Matrix4f;
 public class ChannelBlockEntityRenderer
 		implements BlockEntityRenderer<ChannelBlockEntity, ChannelBlockEntityRenderer.RenderState> {
 
-	private static final Identifier FLUID_TEXTURE = Identifier.of("smelty", "textures/block/molten_alloy_still.png");
-	private static final float V_FRAME = 1f / 20f;
+	private static final Identifier FLUID_TEXTURE = Identifier.ofVanilla("textures/block/smelty_molten_alloy.png");
 
 	private static final float WALL = 2f / 16f;    // wall thickness
 	private static final float OVERLAP = 0.005f;  // slight overlap to prevent gaps
@@ -101,7 +100,6 @@ public class ChannelBlockEntityRenderer
 				}
 			}
 		}
-		state.animationTime = entity.getWorld() != null ? entity.getWorld().getTime() + tickDelta : 0;
 	}
 
 	@Override
@@ -109,11 +107,8 @@ public class ChannelBlockEntityRenderer
 			CameraRenderState camera) {
 		if (state.fluidLevel <= 0 && !state.activeDownwardFlow) return;
 
-		// Animation: 38-step pingpong cycle (frames 0-19-0), 2 ticks per frame
-		int step = ((int) state.animationTime / 2) % 38;
-		int frame = step < 20 ? step : 38 - step;
-		float v0 = frame * V_FRAME;
-		float v1 = v0 + V_FRAME;
+		float v0 = 0;
+		float v1 = 1;
 
 		// Extend fluid past block edge on connected sides, overlap into wall on closed sides
 		float x1 = state.connWest ? -OVERLAP : WALL - OVERLAP;
@@ -300,6 +295,5 @@ public class ChannelBlockEntityRenderer
 		public float targetSurfaceY; // target block's fluid surface Y (in block-local coords)
 		public boolean activeDownwardFlow;
 		public int flowColor;
-		public float animationTime;
 	}
 }
