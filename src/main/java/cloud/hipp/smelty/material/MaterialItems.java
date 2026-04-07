@@ -16,6 +16,7 @@ public class MaterialItems {
 	public static final int BLOCK_VOLUME = UNITS_PER_INGOT * 9;   // 1620 (9 ingots)
 	public static final int INGOT_VOLUME = UNITS_PER_INGOT;       // 180
 	public static final int NUGGET_VOLUME = UNITS_PER_INGOT / 9;  // 20
+	public static final int PLATE_VOLUME = UNITS_PER_INGOT * 2;   // 360 (2 ingots)
 
 	private static final Map<Item, MaterialEntry> ITEM_MAP = new HashMap<>();
 	private static final EnumMap<SmeltyMaterial, Item> INGOT_MAP = new EnumMap<>(SmeltyMaterial.class);
@@ -66,6 +67,18 @@ public class MaterialItems {
 		INGOT_MAP.put(SmeltyMaterial.NETHERITE, Items.NETHERITE_INGOT);
 		BLOCK_MAP.put(SmeltyMaterial.NETHERITE, Items.NETHERITE_BLOCK);
 		NUGGET_MAP.put(SmeltyMaterial.NETHERITE, SmeltyItems.NETHERITE_NUGGET);
+
+		// Plates (2 ingots each)
+		register(SmeltyItems.COPPER_PLATE, SmeltyMaterial.COPPER, PLATE_VOLUME, false);
+		register(SmeltyItems.IRON_PLATE, SmeltyMaterial.IRON, PLATE_VOLUME, false);
+		register(SmeltyItems.GOLD_PLATE, SmeltyMaterial.GOLD, PLATE_VOLUME, false);
+		register(SmeltyItems.DIAMOND_PLATE, SmeltyMaterial.DIAMOND, PLATE_VOLUME, false);
+		register(SmeltyItems.NETHERITE_PLATE, SmeltyMaterial.NETHERITE, PLATE_VOLUME, false);
+
+		// Molds (2 ingots of iron each)
+		register(SmeltyItems.INGOT_MOLD, SmeltyMaterial.IRON, PLATE_VOLUME, false);
+		register(SmeltyItems.NUGGET_MOLD, SmeltyMaterial.IRON, PLATE_VOLUME, false);
+		register(SmeltyItems.ROD_MOLD, SmeltyMaterial.IRON, PLATE_VOLUME, false);
 	}
 
 	private static void register(Item item, SmeltyMaterial material, int volumeMl, boolean rawOre) {

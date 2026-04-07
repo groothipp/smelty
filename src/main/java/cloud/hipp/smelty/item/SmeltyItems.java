@@ -41,6 +41,9 @@ public class SmeltyItems {
 	public static final Item NETHERITE_PLATE = register("netherite_plate");
 	public static final Item ALLOY_PLATE = registerAlloy("alloy_plate", "Plate");
 
+	// Guide book
+	public static final Item METALLURGY_GUIDE = registerGuide("metallurgy_guide");
+
 	// Molds
 	public static final Item INGOT_MOLD = register("ingot_mold");
 	public static final Item NUGGET_MOLD = register("nugget_mold");
@@ -130,6 +133,16 @@ public class SmeltyItems {
 		return Registry.register(Registries.ITEM, key, new Item(new Item.Settings().registryKey(key)));
 	}
 
+	private static Item registerGuide(String id) {
+		RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, id));
+		Item.Settings settings = new Item.Settings()
+				.registryKey(key)
+				.maxCount(1)
+				.component(net.minecraft.component.DataComponentTypes.WRITTEN_BOOK_CONTENT,
+						MetallurgyGuideItem.createBookContent());
+		return Registry.register(Registries.ITEM, key, new MetallurgyGuideItem(settings));
+	}
+
 	private static Item registerAlloy(String id, String suffix) {
 		RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, id));
 		return Registry.register(Registries.ITEM, key, new AlloyItem(new Item.Settings().registryKey(key), suffix));
@@ -198,6 +211,7 @@ public class SmeltyItems {
 			entries.add(INGOT_MOLD);
 			entries.add(NUGGET_MOLD);
 			entries.add(ROD_MOLD);
+			entries.add(METALLURGY_GUIDE);
 		});
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> {
 			entries.add(ALLOY_SWORD);

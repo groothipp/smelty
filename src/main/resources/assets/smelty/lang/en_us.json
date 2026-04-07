@@ -37,6 +37,7 @@
   "item.smelty.alloy_chestplate": "Alloy Chestplate",
   "item.smelty.alloy_leggings": "Alloy Leggings",
   "item.smelty.alloy_boots": "Alloy Boots",
+  "item.smelty.metallurgy_guide": "Metallurgy Guide",
   "death.attack.molten_alloy": "%1$s tried to swim in molten alloy",
   "death.attack.molten_alloy.player": "%1$s tried to swim in molten alloy to escape %2$s"
 }
