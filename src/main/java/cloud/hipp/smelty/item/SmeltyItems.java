@@ -8,6 +8,7 @@ import cloud.hipp.smelty.tool.AlloyAxeItem;
 import cloud.hipp.smelty.tool.AlloyHoeItem;
 import cloud.hipp.smelty.tool.AlloyShovelItem;
 import cloud.hipp.smelty.tool.AlloyToolItem;
+import cloud.hipp.smelty.tool.SmeltyToolType;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroups;
@@ -65,12 +66,12 @@ public class SmeltyItems {
 	public static final Item ALLOY_ROD = registerAlloy("alloy_rod", "Rod");
 
 	// Tools
-	public static final Item ALLOY_SWORD = registerTool("alloy_sword", "Sword");
-	public static final Item ALLOY_PICKAXE = registerTool("alloy_pickaxe", "Pickaxe");
+	public static final Item ALLOY_SWORD = registerTool("alloy_sword", SmeltyToolType.SWORD);
+	public static final Item ALLOY_PICKAXE = registerTool("alloy_pickaxe", SmeltyToolType.PICKAXE);
 	public static final Item ALLOY_AXE = registerAxe("alloy_axe");
 	public static final Item ALLOY_SHOVEL = registerShovel("alloy_shovel");
 	public static final Item ALLOY_HOE = registerHoe("alloy_hoe");
-	public static final Item ALLOY_SPEAR = registerTool("alloy_spear", "Spear");
+	public static final Item ALLOY_SPEAR = registerTool("alloy_spear", SmeltyToolType.SPEAR);
 
 	// Armor
 	public static final Item ALLOY_HELMET = registerArmor("alloy_helmet", "Helmet");
@@ -134,11 +135,11 @@ public class SmeltyItems {
 		return Registry.register(Registries.ITEM, key, new AlloyItem(new Item.Settings().registryKey(key), suffix));
 	}
 
-	private static Item registerTool(String id, String toolTypeName) {
+	private static Item registerTool(String id, SmeltyToolType toolType) {
 		RegistryKey<Item> key = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Smelty.MOD_ID, id));
 		Item.Settings settings = new Item.Settings().registryKey(key)
 				.sword(ToolMaterial.IRON, 3.0f, -2.4f);
-		return Registry.register(Registries.ITEM, key, new AlloyToolItem(settings, toolTypeName));
+		return Registry.register(Registries.ITEM, key, new AlloyToolItem(settings, toolType));
 	}
 
 	private static Item registerAxe(String id) {

@@ -87,6 +87,8 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 		for (SmeltyMaterial mat : SmeltyMaterial.values()) {
 			percentages.add((float) normalizedComp.getMaterials().getOrDefault(mat, 0));
 		}
+		// [5] = defense value for tooltip
+		percentages.add((float) defense);
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
 						percentages, List.of(), List.of(),
@@ -121,6 +123,10 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 
 		// Set enchantability
 		stack.set(DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14));
+
+		// Hide vanilla attribute modifiers tooltip (replaced by custom Smelty tooltip)
+		stack.set(DataComponentTypes.TOOLTIP_DISPLAY,
+				net.minecraft.component.type.TooltipDisplayComponent.DEFAULT.with(DataComponentTypes.ATTRIBUTE_MODIFIERS, true));
 
 		return stack;
 	}

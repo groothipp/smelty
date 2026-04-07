@@ -24,7 +24,7 @@ public class AlloyShovelItem extends ShovelItem {
 	@Override
 	public void appendTooltip(ItemStack stack, Item.TooltipContext context, TooltipDisplayComponent displayComponent,
 							  Consumer<Text> tooltip, TooltipType type) {
-		AlloyToolItem.appendToolStats(stack, tooltip);
+		AlloyToolItem.appendToolStats(stack, tooltip, SmeltyToolType.SHOVEL);
 		super.appendTooltip(stack, context, displayComponent, tooltip, type);
 	}
 }

@@ -143,6 +143,9 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 			floats.add(normalizedHandle != null
 					? (float) normalizedHandle.getMaterials().getOrDefault(mat, 0) : 0f);
 		}
+		// [12] = attack damage (total), [13] = attack speed (total = 4.0 + modifier)
+		floats.add((float) attackDamage);
+		floats.add((float) (4.0 + attackSpeedMod));
 		int handleColor = normalizedHandle != null
 				? normalizedHandle.getBlendedColor() : STICK_COLOR;
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
@@ -196,6 +199,10 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 
 		// Set enchantability
 		stack.set(DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14));
+
+		// Hide vanilla attribute modifiers tooltip (replaced by custom Smelty tooltip)
+		stack.set(DataComponentTypes.TOOLTIP_DISPLAY,
+				net.minecraft.component.type.TooltipDisplayComponent.DEFAULT.with(DataComponentTypes.ATTRIBUTE_MODIFIERS, true));
 
 		return stack;
 	}
