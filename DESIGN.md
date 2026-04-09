@@ -11,7 +11,7 @@ Seven materials with 7 metallurgical properties each (0-100 scale), plus a displ
 | Material  | Hardness | Toughness | Melting Pt | Malleability | Ductility | Density | Corrosion Res | Color    |
 |-----------|----------|-----------|------------|--------------|-----------|---------|---------------|----------|
 | Copper    | 35       | 40        | 10         | 55           | 65        | 45      | 20            | 0xB87333 |
-| Iron      | 60       | 65        | 40         | 45           | 50        | 50      | 30            | 0xA0A0A0 |
+| Iron      | 60       | 65        | 40         | 45           | 50        | 50      | 30            | 0xD0D0D0 |
 | Gold      | 10       | 15        | 10         | 35           | 20        | 65      | 70            | 0xFFD700 |
 | Diamond   | 90       | 75        | 160        | 20           | 55        | 25      | 90            | 0x4AEDD9 |
 | Netherite | 85       | 90        | 200        | 35           | 50        | 75      | 85            | 0x4A3B2C |
@@ -76,6 +76,12 @@ Where `concentration = modifier_units / total_alloy_volume` (effectively items p
 
 Block items count as multiple modifier units (multiplier shown in parentheses). Single-property modifiers have k=0.5, dual-property modifiers k=0.4, all-property modifier (Ender Pearl) k=0.3. Higher k means the bonus saturates faster.
 
+**Modifiers stay in the smelter.** When alloy is poured out, modifiers are NOT drained from the smelter — they persist across multiple pours. Cast items receive a proportional snapshot of the modifier state at cast time, but the smelter retains all its modifiers. Re-smelting alloy items does NOT add their modifiers back to the smelter; only explicitly thrown modifier items count.
+
+### Netherwart (Modifier Removal)
+
+Throwing **Nether Wart** into a smelter with modifiers removes one random modifier type entirely per wart consumed. A stack of netherwart processes multiple removals (1 wart = 1 modifier type removed). If all modifiers are already removed, remaining warts are not consumed.
+
 ### Overall Modifier Effectiveness
 
 All modifier bonuses are scaled by an overall effectiveness factor that decays with total modifier concentration:
@@ -103,6 +109,14 @@ Materials contributing >= 10% of total volume count as "distinct." The diversity
 ```
 P_final = (P_blended + modifier_bonus) * (1 + diversity_bonus)
 ```
+
+**Density exception:** For density, the diversity bonus pushes the value away from 50 (the neutral point) rather than uniformly increasing it:
+
+```
+density_final = 50 + (density_base - 50) * (1 + diversity_bonus)
+```
+
+This means light alloys (density < 50) get lighter with diversity, and heavy alloys (density > 50) get heavier. Density exactly at 50 is unaffected.
 
 ### Stat Total and Tier
 
@@ -231,7 +245,17 @@ Uses the same base durability formula as tools, then scaled by the slot's durabi
 
 ## Tool Crafting
 
-Tools are crafted on a vanilla crafting table using **ingots** (head) and **rods** (handle). All ingots in a recipe must be the same material/alloy. All rods must be the same material/alloy. Sticks can substitute for rods (contribute no material properties).
+Tools are crafted on a vanilla crafting table using **ingots** (head) and **rods** (handle). All ingots in a recipe must be the same material/alloy. All rods must be the same material/alloy. Sticks can substitute for rods but apply a **stick penalty**.
+
+### Stick Penalty
+
+When sticks are used as handles instead of alloy rods, a penalty is applied to computed stats:
+
+```
+penalized_stat = stat * (1 - handleWeight)
+```
+
+This affects attack damage, mining speed, and durability. For example, a sword (handleWeight = 0.30) with sticks gets 70% of its normal stats. This ensures alloy rods are always preferable to sticks.
 
 ### Crafting Patterns
 
@@ -318,10 +342,11 @@ Structure is revalidated every 40 ticks (2 seconds). If the structure becomes in
 Items thrown into the smelter interior (above layer 1) are scanned every 10 ticks. Accepted items:
 
 1. **Registered material items** (ingots, nuggets, blocks, raw ores, plates, rods, molds): Added at their volume. If the material's required heat exceeds current heat, placed in the "unmelted" pool instead.
-2. **Alloy items** (alloy_ingot, alloy_nugget, alloy_rod, alloy_plate): Composition extracted from CustomModelData, re-normalized to the item's volume, then added.
-3. **Solid alloy blocks**: Block entity data extracted, composition re-normalized to stored volume.
-4. **Modifier items**: Added to molten alloy (requires molten alloy to exist). Each item = 180 mL of modifier volume.
-5. **Unrecognized items** in molten alloy: Destroyed with lava extinguish sound.
+2. **Alloy items** (alloy_ingot, alloy_nugget, alloy_rod, alloy_plate): Composition extracted from CustomModelData, re-normalized to the item's volume, then added. **Modifiers stored on the item are discarded** — only materials are added.
+3. **Solid alloy blocks**: Block entity data extracted, composition re-normalized to stored volume. Modifiers discarded.
+4. **Nether Wart**: Removes one random modifier type per wart (processes full stack).
+5. **Modifier items**: Added to molten alloy (requires molten alloy to exist). Each item = 180 mL of modifier volume. Only explicitly thrown modifier items add modifiers.
+6. **Unrecognized items** in molten alloy: Destroyed with lava extinguish sound.
 
 ### Bonus Volume Chances
 
@@ -376,7 +401,7 @@ Channels connect horizontally to adjacent channels, basins, and tables via block
 
 - **Capacity:** 1620 mL (9 ingots)
 - **Cooldown:** 80 ticks (4 seconds) after filling
-- **Output:** Pure single material = vanilla block/ingot/nugget items (greedy decomposition: blocks first, then ingots, then nuggets). Mixed alloy or modified = solid alloy block item with embedded composition data.
+- **Output:** Pure single material without modifiers = vanilla block/ingot/nugget items (greedy decomposition: blocks first, then ingots, then nuggets). Mixed alloy or modified material = solid alloy block item with embedded composition data.
 
 ### Casting Table
 
@@ -404,7 +429,7 @@ Channels connect horizontally to adjacent channels, basins, and tables via block
 | Diamond Mold | 180 mL   | Cast Diamond         | Alloy Ingot      |
 | Emerald Mold | 180 mL   | Cast Emerald         | Alloy Ingot      |
 
-**Mold restrictions:** Diamond mold only accepts pure diamond fluid. Emerald mold only accepts pure emerald. Ingot mold rejects pure diamond and pure emerald (must use specialized molds).
+**Mold restrictions:** Diamond mold only accepts pure, unmodified diamond fluid. Emerald mold only accepts pure, unmodified emerald. Ingot mold rejects pure unmodified diamond and emerald (must use specialized molds). However, diamond or emerald alloys **with modifiers** are treated as alloys — they must use the ingot mold and produce alloy ingots.
 
 **No pattern:** Produces a plate (pure material plate or alloy plate).
 
@@ -414,7 +439,9 @@ Molds are reusable -- extracting a cast item keeps the mold on the table.
 
 ## Proportional Draining
 
-When fluid is drained from an AlloyComposition, all materials (and modifiers) are drained proportionally. The algorithm:
+When fluid is drained from an AlloyComposition, **only materials** are drained proportionally. Modifiers are never drained — they stay in the source. The drained portion receives a proportional snapshot of the source's modifiers (for cast item encoding) without removing them.
+
+The algorithm for material draining:
 
 1. Compute `ratio = drainMl / totalMl`
 2. For each material: `toDrain = round(ratio * volume)`
@@ -465,7 +492,27 @@ Layout: `[7 head materials, miningSpeed, miningTierIndex, 7 handle materials, at
 
 Layout: `[7 materials, defense, tier]`
 
-`CustomModelData.colors()`: `[blendedColor]`
+`CustomModelData.colors()`: `[blendedColor]` for inventory tinting.
+
+Armor also uses `DYED_COLOR` component for equipped color rendering on the player model (via a custom `smelty:alloy` equipment model with a `dyeable` layer). The dyed color tooltip is hidden via `TooltipDisplayComponent`.
+
+---
+
+## Equipment Tooltips
+
+Each equipment type shows only its relevant stats, in this order:
+
+| Equipment | Tooltip Stats                                      |
+|-----------|----------------------------------------------------|
+| Sword     | Tier, Attack Damage, Attack Speed, Durability      |
+| Axe       | Tier, Attack Damage, Attack Speed, Mine Speed, Durability |
+| Spear     | Tier, Attack Damage, Attack Speed, Durability      |
+| Pickaxe   | Tier, Mine Speed, Durability                       |
+| Shovel    | Tier, Mine Speed, Durability                       |
+| Hoe       | Tier, Durability                                   |
+| Armor     | Tier, Armor, Toughness, Move Speed                 |
+
+Armor move speed is displayed as an integer percentage (floored). Vanilla attribute modifier and dyed color tooltips are hidden.
 
 ---
 
