@@ -40,6 +40,7 @@ public class CastingTableBlockEntityRenderer
 	private static final Identifier NUGGET_MOLD_TEX = Identifier.of("smelty", "textures/item/nugget_mold.png");
 	private static final Identifier ROD_MOLD_TEX = Identifier.of("smelty", "textures/item/rod_mold.png");
 	private static final Identifier DIAMOND_MOLD_TEX = Identifier.of("smelty", "textures/item/diamond_mold.png");
+	private static final Identifier EMERALD_MOLD_TEX = Identifier.of("smelty", "textures/item/emerald_mold.png");
 
 	public CastingTableBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
 	}
@@ -79,10 +80,12 @@ public class CastingTableBlockEntityRenderer
 		if (item == SmeltyItems.NUGGET_MOLD) return NUGGET_MOLD_TEX;
 		if (item == SmeltyItems.ROD_MOLD) return ROD_MOLD_TEX;
 		if (item == SmeltyItems.DIAMOND_MOLD) return DIAMOND_MOLD_TEX;
+		if (item == SmeltyItems.EMERALD_MOLD) return EMERALD_MOLD_TEX;
 		if (item == Items.COPPER_INGOT) return Identifier.ofVanilla("textures/item/copper_ingot.png");
 		if (item == Items.IRON_INGOT) return Identifier.ofVanilla("textures/item/iron_ingot.png");
 		if (item == Items.GOLD_INGOT) return Identifier.ofVanilla("textures/item/gold_ingot.png");
-		if (item == Items.DIAMOND) return Identifier.ofVanilla("textures/item/diamond.png");
+		if (item == Items.DIAMOND || item == SmeltyItems.CASTED_DIAMOND) return Identifier.ofVanilla("textures/item/diamond.png");
+		if (item == Items.EMERALD || item == SmeltyItems.CASTED_EMERALD) return Identifier.ofVanilla("textures/item/emerald.png");
 		if (item == Items.NETHERITE_INGOT) return Identifier.ofVanilla("textures/item/netherite_ingot.png");
 		if (item == Items.IRON_NUGGET) return Identifier.ofVanilla("textures/item/iron_nugget.png");
 		if (item == Items.GOLD_NUGGET) return Identifier.ofVanilla("textures/item/gold_nugget.png");
@@ -95,6 +98,7 @@ public class CastingTableBlockEntityRenderer
 		if (moldItem == SmeltyItems.NUGGET_MOLD) return NUGGET_MOLD_TEX;
 		if (moldItem == SmeltyItems.ROD_MOLD) return ROD_MOLD_TEX;
 		if (moldItem == SmeltyItems.DIAMOND_MOLD) return DIAMOND_MOLD_TEX;
+		if (moldItem == SmeltyItems.EMERALD_MOLD) return EMERALD_MOLD_TEX;
 		return null;
 	}
 
@@ -116,6 +120,14 @@ public class CastingTableBlockEntityRenderer
 		if (item == Items.NETHERITE_INGOT || item == SmeltyItems.NETHERITE_NUGGET
 				|| item == SmeltyItems.NETHERITE_PLATE || item == SmeltyItems.NETHERITE_ROD)
 			return Identifier.ofVanilla("textures/block/netherite_block.png");
+		// Obsidian
+		if (item == SmeltyItems.OBSIDIAN_INGOT || item == SmeltyItems.OBSIDIAN_NUGGET
+				|| item == SmeltyItems.OBSIDIAN_PLATE || item == SmeltyItems.OBSIDIAN_ROD)
+			return Identifier.ofVanilla("textures/block/obsidian.png");
+		// Emerald
+		if (item == Items.EMERALD || item == SmeltyItems.CASTED_EMERALD || item == SmeltyItems.EMERALD_NUGGET
+				|| item == SmeltyItems.EMERALD_PLATE || item == SmeltyItems.EMERALD_ROD)
+			return Identifier.ofVanilla("textures/block/emerald_block.png");
 		// Alloy items (tinted with alloy color at render time)
 		if (isAlloyItem(item))
 			return Identifier.ofVanilla("textures/block/iron_block.png");

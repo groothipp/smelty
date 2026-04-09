@@ -66,9 +66,9 @@ public class Smelty implements ModInitializer {
 					if (comp.getMaterials().size() <= 1 && comp.getModifiers().isEmpty()) return;
 
 					AlloyRegistry registry = AlloyRegistry.get(serverWorld);
-					// Don't allow overwriting an existing name
+					// Don't allow overwriting an existing name or reusing a taken name
 					if (registry.getAlloyName(comp) != null) return;
-					registry.setAlloyName(comp.getNormalizedKey(), name);
+					if (!registry.setAlloyName(comp.getNormalizedKey(), name)) return;
 
 					// Sync updated registry to all players
 					SyncAlloyRegistryPayload syncPayload = new SyncAlloyRegistryPayload(registry.getCompositionToName());

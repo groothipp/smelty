@@ -58,34 +58,48 @@ public class AlloyComposition {
 		int totalMl = getTotalVolumeMl();
 		if (totalMl == 0 || drainMl <= 0) return;
 		if (drainMl >= totalMl) {
-			clear();
+			materials.clear();
+			// Modifiers stay — they don't drain with materials
 			return;
 		}
 		double ratio = (double) drainMl / totalMl;
-		// Drain materials
+		// Drain materials only — modifiers stay in the source
 		drainMap(materials, ratio, drainMl);
-		// Drain modifiers proportionally
-		drainModifiers(ratio);
 	}
 
 	/**
-	 * Drains proportionally and returns a new AlloyComposition containing the drained portion.
+	 * Drains materials proportionally and returns a new AlloyComposition containing the drained portion.
+	 * Modifiers are copied (snapshotted) to the drained portion but NOT removed from the source.
 	 */
 	public AlloyComposition drainAndReturn(int drainMl) {
 		AlloyComposition drained = new AlloyComposition();
 		int totalMl = getTotalVolumeMl();
 		if (totalMl == 0 || drainMl <= 0) return drained;
 		if (drainMl >= totalMl) {
-			drained.mergeFrom(this);
-			clear();
+			drained.materials.putAll(materials);
+			materials.clear();
+			// Copy modifiers to drained portion but keep them in source
+			copyModifiersProportional(drained, 1.0);
 			return drained;
 		}
 		double ratio = (double) drainMl / totalMl;
 		// Drain materials
 		drainMapAndReturn(materials, drained.materials, ratio, drainMl);
-		// Drain modifiers proportionally
-		drainMapProportional(modifiers, drained.modifiers, ratio);
+		// Copy modifiers proportionally to drained portion (source keeps all modifiers)
+		copyModifiersProportional(drained, ratio);
 		return drained;
+	}
+
+	/**
+	 * Copy modifiers proportionally to the target without removing from source.
+	 */
+	private void copyModifiersProportional(AlloyComposition target, double ratio) {
+		for (var entry : modifiers.entrySet()) {
+			int amount = (int) Math.round(ratio * entry.getValue());
+			if (amount > 0) {
+				target.modifiers.put(entry.getKey(), amount);
+			}
+		}
 	}
 
 	private <K extends Enum<K>> void drainMap(EnumMap<K, Integer> map, double ratio, int targetDrain) {
@@ -299,8 +313,27 @@ public class AlloyComposition {
 		return (double) units / totalMl;
 	}
 
+	// Overall modifier effectiveness decay rate
+	private static final double OVERALL_MODIFIER_K = 0.15;
+
 	/**
-	 * Compute total modifier bonus for a given property across all modifiers.
+	 * Compute the overall modifier effectiveness based on total modifier concentration.
+	 * Decays exponentially: more total modifiers = each one is less effective.
+	 */
+	public double getOverallModifierEffectiveness() {
+		int totalMl = getTotalVolumeMl();
+		if (totalMl == 0) return 1.0;
+		int totalModifierUnits = 0;
+		for (int units : modifiers.values()) {
+			totalModifierUnits += units;
+		}
+		double totalConcentration = (double) totalModifierUnits / totalMl;
+		return Math.exp(-OVERALL_MODIFIER_K * totalConcentration);
+	}
+
+	/**
+	 * Compute total modifier bonus for a given property across all modifiers,
+	 * scaled by overall modifier effectiveness.
 	 */
 	public double getModifierBonus(MaterialProperty property) {
 		double totalBonus = 0;
@@ -310,7 +343,7 @@ public class AlloyComposition {
 				totalBonus += mod.getBonus(property, concentration);
 			}
 		}
-		return totalBonus;
+		return totalBonus * getOverallModifierEffectiveness();
 	}
 
 	// --- Diversity bonus ---
@@ -346,12 +379,19 @@ public class AlloyComposition {
 	/**
 	 * Compute the final alloy property value after applying modifier bonuses and diversity bonus.
 	 * P_final = (P_blended + modifier_bonus) * (1 + diversity_bonus)
+	 *
+	 * For density, diversity pushes the value away from 50 (further toward extremes):
+	 * density_final = 50 + (base - 50) * (1 + diversity_bonus)
 	 */
 	public double getFinalProperty(MaterialProperty property) {
 		double blended = getBlendedProperty(property);
 		double modBonus = getModifierBonus(property);
 		double diversity = getDiversityBonus();
-		return (blended + modBonus) * (1 + diversity);
+		double base = blended + modBonus;
+		if (property == MaterialProperty.DENSITY) {
+			return 50 + (base - 50) * (1 + diversity);
+		}
+		return base * (1 + diversity);
 	}
 
 	/**

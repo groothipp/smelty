@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "PPP",
+    " S "
+  ],
+  "key": {
+    "P": "minecraft:paper",
+    "S": "smelty:smelter_block"
+  },
+  "result": {
+    "id": "smelty:metallurgy_guide",
+    "count": 1
+  }
+}

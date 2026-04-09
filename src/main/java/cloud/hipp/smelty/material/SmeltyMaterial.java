@@ -3,11 +3,11 @@ package cloud.hipp.smelty.material;
 public enum SmeltyMaterial {
 	//                                          H   T   MP   Ma  Du  De  CR   reqHeat  color
 	COPPER   ("Copper",    35, 40,  10, 55, 65, 45, 20,  10, 0xB87333),
-	IRON     ("Iron",      60, 65,  40, 45, 50, 50, 30,  50, 0xA0A0A0),
+	IRON     ("Iron",      60, 65,  40, 45, 50, 50, 30,  50, 0xD0D0D0),
 	GOLD     ("Gold",      10, 15,  10, 35, 20, 65, 70,  10, 0xFFD700),
-	DIAMOND  ("Diamond",   90, 75, 160, 20, 55, 25, 90, 200, 0x4AEDD9),
-	NETHERITE("Netherite",  85, 90, 200, 35, 50, 75, 85, 150, 0x4A3B2C),
-	OBSIDIAN ("Obsidian",  95, 10, 160,  5,  5, 55, 80, 200, 0x1B0B2E),
+	DIAMOND  ("Diamond",   90, 75, 160, 20, 55, 25, 90, 160, 0x4AEDD9),
+	NETHERITE("Netherite",  85, 90, 200, 35, 50, 75, 85, 200, 0x4A3B2C),
+	OBSIDIAN ("Obsidian",  95, 10, 160,  5,  5, 55, 80, 160, 0x1B0B2E),
 	EMERALD  ("Emerald",   45, 70,  40, 50, 55, 20, 60,  50, 0x17DD62);
 
 	private final String displayName;

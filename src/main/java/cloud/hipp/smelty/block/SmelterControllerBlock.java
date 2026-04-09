@@ -1,7 +1,9 @@
 package cloud.hipp.smelty.block;
 
+import cloud.hipp.smelty.SmeltyPlayerData;
 import cloud.hipp.smelty.block.entity.SmelterControllerBlockEntity;
 import cloud.hipp.smelty.block.entity.SmeltyBlockEntities;
+import cloud.hipp.smelty.item.SmeltyItems;
 import cloud.hipp.smelty.structure.MultiblockValidator;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.BlockState;
@@ -63,6 +65,20 @@ public class SmelterControllerBlock extends BlockWithEntity {
 			if (be instanceof SmelterControllerBlockEntity controller) {
 				MultiblockValidator.Result result = MultiblockValidator.validate(world, pos);
 				controller.setMultiblockData(result);
+				if (result.valid() && placer instanceof PlayerEntity player) {
+					tryGiveGuide((ServerWorld) world, player);
+				}
+			}
+		}
+	}
+
+	private void tryGiveGuide(ServerWorld world, PlayerEntity player) {
+		SmeltyPlayerData data = SmeltyPlayerData.get(world);
+		if (!data.hasReceivedGuide(player.getUuid())) {
+			data.markGuideReceived(player.getUuid());
+			ItemStack guide = new ItemStack(SmeltyItems.METALLURGY_GUIDE);
+			if (!player.getInventory().insertStack(guide)) {
+				player.dropItem(guide, false);
 			}
 		}
 	}

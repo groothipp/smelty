@@ -41,25 +41,54 @@ public class AlloyToolItem extends Item {
 
 	/**
 	 * Resolve the tool name from stored composition data.
-	 * Pure material -> "Material Tool"
+	 * Floats layout: [0-6] head materials, [7] miningSpeed, [8] miningTierIndex,
+	 *                [9-15] handle materials, [16] attackDamage, [17] attackSpeed, [18] tier
+	 *
+	 * Pure material head + sticks -> "Material Tool"
 	 * Named alloy -> "AlloyName Tool"
 	 * Unnamed alloy -> "Alloy Tool"
 	 */
 	public static Text getToolName(ItemStack stack, String toolTypeName) {
 		CustomModelDataComponent cmd = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
-		if (cmd != null && !cmd.floats().isEmpty()) {
-			AlloyComposition comp = AlloyComposition.fromPercentages(cmd.floats());
-			if (comp.getMaterials().size() == 1 && comp.getModifiers().isEmpty()) {
-				SmeltyMaterial material = comp.getMaterials().keySet().iterator().next();
-				return Text.literal(material.getDisplayName() + " " + toolTypeName);
-			}
-			String name = ClientAlloyRegistry.getAlloyName(comp);
-			if (name != null) {
-				return Text.literal(name + " " + toolTypeName);
-			}
-			return Text.literal("Alloy " + toolTypeName);
+		if (cmd == null || cmd.floats().size() < 19) return null;
+
+		var floats = cmd.floats();
+		SmeltyMaterial[] mats = SmeltyMaterial.values();
+
+		// Extract head composition (floats 0-6)
+		AlloyComposition headComp = new AlloyComposition();
+		for (int i = 0; i < mats.length; i++) {
+			int amount = Math.round(floats.get(i));
+			if (amount > 0) headComp.addMaterial(mats[i], amount);
 		}
-		return null;
+
+		// Extract handle composition (floats 9-15)
+		boolean handleIsSticks = true;
+		for (int i = 9; i < 9 + mats.length; i++) {
+			if (Math.round(floats.get(i)) > 0) {
+				handleIsSticks = false;
+				break;
+			}
+		}
+
+		// Pure material head + sticks = material name
+		if (headComp.getMaterials().size() == 1 && handleIsSticks) {
+			SmeltyMaterial material = headComp.getMaterials().keySet().iterator().next();
+			return Text.literal(material.getDisplayName() + " " + toolTypeName);
+		}
+
+		// Check for named alloy using combined composition
+		AlloyComposition combined = new AlloyComposition();
+		for (int i = 0; i < mats.length; i++) {
+			int headAmt = Math.round(floats.get(i));
+			int handleAmt = Math.round(floats.get(9 + i));
+			if (headAmt + handleAmt > 0) combined.addMaterial(mats[i], headAmt + handleAmt);
+		}
+		String name = ClientAlloyRegistry.getAlloyName(combined);
+		if (name != null) {
+			return Text.literal(name + " " + toolTypeName);
+		}
+		return Text.literal("Alloy " + toolTypeName);
 	}
 
 	/**
@@ -67,8 +96,12 @@ public class AlloyToolItem extends Item {
 	 * Floats layout: [0-6] = head composition (7 materials), [7] = miningSpeed, [8] = miningTierIndex,
 	 *                [9-15] = handle composition (7 materials), [16] = attackDamage, [17] = attackSpeed, [18] = tier
 	 *
-	 * Mining tools (pickaxe, axe, shovel, hoe): Mining Tier, Mining Speed, Durability
-	 * Weapons (sword, spear): Damage, Attack Speed, Durability
+	 * Sword: Tier, Attack Damage, Attack Speed, Durability
+	 * Axe: Tier, Attack Damage, Attack Speed, Mine Speed, Durability
+	 * Spear: Tier, Attack Damage, Attack Speed, Durability
+	 * Pickaxe: Tier, Mine Speed, Durability
+	 * Shovel: Tier, Mine Speed, Durability
+	 * Hoe: Tier, Durability
 	 */
 	public static void appendToolStats(ItemStack stack, Consumer<Text> tooltip, SmeltyToolType toolType) {
 		CustomModelDataComponent cmd = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
@@ -76,14 +109,11 @@ public class AlloyToolItem extends Item {
 
 		int matCount = SmeltyMaterial.values().length; // 7
 		int miningSpeedIdx = matCount;     // 7
-		int tierIdx = matCount + 1;        // 8
 		int atkDmgIdx = matCount + 2 + matCount;     // 16
 		int atkSpdIdx = matCount + 2 + matCount + 1; // 17
 		int toolTierIdx = matCount + 2 + matCount + 2; // 18
 
-		boolean isMiningTool = toolType.getMineableTag() != null;
-
-		// Show alloy tier
+		// Tier (all tools)
 		if (cmd.floats().size() > toolTierIdx) {
 			int tier = Math.round(cmd.floats().get(toolTierIdx));
 			if (tier >= 1 && tier <= AlloyComposition.TIER_NAMES.length) {
@@ -92,29 +122,27 @@ public class AlloyToolItem extends Item {
 			}
 		}
 
-		if (isMiningTool) {
-			int miningTierIndex = Math.round(cmd.floats().get(tierIdx));
-			if (miningTierIndex >= 0 && miningTierIndex < ToolStatCalculator.MINING_TIER_NAMES.length) {
-				tooltip.accept(Text.literal("Mining Tier: " + ToolStatCalculator.MINING_TIER_NAMES[miningTierIndex])
-						.formatted(Formatting.GRAY));
-			}
+		boolean showAttack = toolType == SmeltyToolType.SWORD || toolType == SmeltyToolType.AXE || toolType == SmeltyToolType.SPEAR;
+		boolean showMineSpeed = toolType == SmeltyToolType.PICKAXE || toolType == SmeltyToolType.AXE || toolType == SmeltyToolType.SHOVEL;
 
-			float miningSpeed = cmd.floats().get(miningSpeedIdx);
-			tooltip.accept(Text.literal("Mining Speed: " + String.format("%.1f", miningSpeed))
+		// Attack Damage + Attack Speed (sword, axe, spear)
+		if (showAttack && cmd.floats().size() > atkSpdIdx) {
+			float attackDamage = cmd.floats().get(atkDmgIdx);
+			float attackSpeed = cmd.floats().get(atkSpdIdx);
+			tooltip.accept(Text.literal("Attack Damage: " + String.format("%.1f", attackDamage))
+					.formatted(Formatting.DARK_RED));
+			tooltip.accept(Text.literal("Attack Speed: " + String.format("%.1f", attackSpeed))
 					.formatted(Formatting.DARK_GREEN));
-		} else {
-			// Weapons: show damage and attack speed
-			if (cmd.floats().size() > atkSpdIdx) {
-				float attackDamage = cmd.floats().get(atkDmgIdx);
-				float attackSpeed = cmd.floats().get(atkSpdIdx);
-				tooltip.accept(Text.literal("Damage: " + String.format("%.1f", attackDamage))
-						.formatted(Formatting.DARK_RED));
-				tooltip.accept(Text.literal("Attack Speed: " + String.format("%.1f", attackSpeed))
-						.formatted(Formatting.DARK_GREEN));
-			}
 		}
 
-		// Durability for all tool types
+		// Mine Speed (pickaxe, axe, shovel)
+		if (showMineSpeed) {
+			float miningSpeed = cmd.floats().get(miningSpeedIdx);
+			tooltip.accept(Text.literal("Mine Speed: " + String.format("%.1f", miningSpeed))
+					.formatted(Formatting.DARK_GREEN));
+		}
+
+		// Durability (all tools)
 		Integer maxDamage = stack.get(DataComponentTypes.MAX_DAMAGE);
 		if (maxDamage != null) {
 			int currentDamage = stack.getOrDefault(DataComponentTypes.DAMAGE, 0);

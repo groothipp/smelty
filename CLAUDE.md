@@ -27,7 +27,7 @@ Build artifacts are output to `build/libs/`.
 
 ## Architecture
 
-Source is under `src/main/java/cloud/hipp/smelty/`. Design documents are in `notes/` (not shipped with the mod). For design questions, refer to `notes/design.md`.
+Source is under `src/main/java/cloud/hipp/smelty/`. For design questions — formulas, material properties, system mechanics — refer to `DESIGN.md` (the authoritative design reference reflecting what is actually implemented). The `notes/` directory contains informal thoughts and brainstorming (not shipped with the mod).
 
 ### Entrypoints
 - `Smelty.java` — Main entrypoint (`ModInitializer`), mod ID is `smelty`
@@ -98,7 +98,7 @@ Source is under `src/main/java/cloud/hipp/smelty/`. Design documents are in `not
 ## Key Design Decisions
 
 - Material properties are metallurgically grounded (normalized 0-100 scale) and deliberately diverge from vanilla Minecraft where realism conflicts (e.g., diamond is brittle, gold has low mining speed)
-- Tool stats are computed from material properties at forge time via multiplicative formulas — see `notes/design.md` for the full formula set
+- Tool stats are computed from material properties at forge time via multiplicative formulas — see `DESIGN.md` for the full formula set
 - Components (blade, shaft, head) carry raw material properties; conversion to tool stats happens only when components are combined at the forge
 - The smelter controller owns all alloy data. Breaking a wall keeps data (allows repair). Breaking the controller loses everything.
 - Fluid blocks inside the smelter are managed via queue (empty positions) and stack (filled positions) — fill bottom-up, drain top-down

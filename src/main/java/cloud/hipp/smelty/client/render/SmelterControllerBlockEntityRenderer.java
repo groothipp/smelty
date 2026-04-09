@@ -20,6 +20,7 @@ public class SmelterControllerBlockEntityRenderer
 		implements BlockEntityRenderer<SmelterControllerBlockEntity, SmelterControllerBlockEntityRenderer.RenderState> {
 
 	private static final Identifier FLUID_TEXTURE = Identifier.ofVanilla("textures/block/smelty_molten_alloy.png");
+	private static final Identifier SOLID_TEXTURE = Identifier.ofVanilla("textures/block/smooth_stone.png");
 
 	public SmelterControllerBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
 	}
@@ -85,25 +86,25 @@ public class SmelterControllerBlockEntityRenderer
 		float x2 = interiorMinX + interiorW + overlap;
 		float z2 = interiorMinZ + interiorD + overlap;
 
-		var renderLayer = RenderLayers.entitySolid(FLUID_TEXTURE);
-
-		// Render solid (unmelted) layer
+		// Render solid (unmelted) layer with static texture
 		if (state.unmeltedMl > 0) {
+			var solidLayer = RenderLayers.entitySolid(SOLID_TEXTURE);
 			float sy1 = interiorMinY;
 			float sy2 = solidTopY;
-			int color = state.unmeltedColor | 0xFF000000; // full alpha
+			int color = state.unmeltedColor | 0xFF000000;
 			matrices.push();
-			renderColoredBox(matrices, queue, renderLayer, x1, sy1, z1, x2, sy2, z2, color, v0, v1);
+			renderColoredBox(matrices, queue, solidLayer, x1, sy1, z1, x2, sy2, z2, color, 0, 1);
 			matrices.pop();
 		}
 
-		// Render fluid (molten) layer
+		// Render fluid (molten) layer with animated texture
 		if (state.moltenMl > 0) {
+			var fluidLayer = RenderLayers.entitySolid(FLUID_TEXTURE);
 			float fy1 = solidTopY;
 			float fy2 = fluidTopY;
 			int color = state.alloyColor | 0xFF000000;
 			matrices.push();
-			renderColoredBox(matrices, queue, renderLayer, x1, fy1, z1, x2, fy2, z2, color, v0, v1);
+			renderColoredBox(matrices, queue, fluidLayer, x1, fy1, z1, x2, fy2, z2, color, v0, v1);
 			matrices.pop();
 		}
 	}

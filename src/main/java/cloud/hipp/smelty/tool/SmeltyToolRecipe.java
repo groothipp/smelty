@@ -113,7 +113,6 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 		AlloyComposition handleComp = result.handleComposition; // null for sticks
 
 		// Merge head and handle into a single composition for stat computation
-		// The tool's stats come from the combined alloy
 		AlloyComposition combined = new AlloyComposition();
 		combined.mergeFrom(headComp);
 		if (handleComp != null) {
@@ -126,6 +125,14 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 		double miningSpeed = ToolStatCalculator.computeMiningSpeed(combined);
 		int durability = ToolStatCalculator.computeDurability(combined);
 		TagKey<Block> incorrectTag = ToolStatCalculator.computeIncorrectBlocksTag(combined);
+
+		// Stick penalty: sticks have very low properties, making alloy rods always better
+		if (handleComp == null) {
+			double stickPenalty = 1.0 - toolType.getHandleWeight();
+			attackDamage *= stickPenalty;
+			miningSpeed *= stickPenalty;
+			durability = (int) (durability * stickPenalty);
+		}
 
 		// Get output item
 		Item outputItem = getOutputItem(toolType);
@@ -268,7 +275,6 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 
 		AlloyComposition headComp = getComposition(firstIngot);
 		if (headComp == null) return null;
-		// handleComp is null for sticks (wooden handles add no material properties)
 		AlloyComposition handleComp = getComposition(firstRod);
 
 		return new MatchResult(toolType, headComp, handleComp);

@@ -1,6 +1,12 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "smelty:item/netherite_nugget"
+    "model": "smelty:item/netherite_nugget",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": 4865836
+      }
+    ]
   }
 }

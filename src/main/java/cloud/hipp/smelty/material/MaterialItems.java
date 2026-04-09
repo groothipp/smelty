@@ -91,6 +91,7 @@ public class MaterialItems {
 		register(SmeltyItems.OBSIDIAN_INGOT, SmeltyMaterial.OBSIDIAN, INGOT_VOLUME, false);
 		register(SmeltyItems.OBSIDIAN_NUGGET, SmeltyMaterial.OBSIDIAN, NUGGET_VOLUME, false);
 		INGOT_MAP.put(SmeltyMaterial.OBSIDIAN, SmeltyItems.OBSIDIAN_INGOT);
+		BLOCK_MAP.put(SmeltyMaterial.OBSIDIAN, Items.OBSIDIAN);
 		NUGGET_MAP.put(SmeltyMaterial.OBSIDIAN, SmeltyItems.OBSIDIAN_NUGGET);
 
 		// Emerald (vanilla items are meltable inputs)

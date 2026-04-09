@@ -101,18 +101,35 @@ public enum Modifier {
 	// --- Item mapping ---
 
 	private static final Map<Item, Modifier> ITEM_MAP = new HashMap<>();
+	private static final Map<Item, Integer> ITEM_MULTIPLIER = new HashMap<>();
 
 	static {
 		ITEM_MAP.put(Items.COAL, COAL);
 		ITEM_MAP.put(Items.CHARCOAL, COAL);
+		ITEM_MAP.put(Items.COAL_BLOCK, COAL);
+		ITEM_MULTIPLIER.put(Items.COAL_BLOCK, 9);
 		ITEM_MAP.put(Items.BONE_MEAL, BONE_MEAL);
+		ITEM_MAP.put(Items.BONE_BLOCK, BONE_MEAL);
+		ITEM_MULTIPLIER.put(Items.BONE_BLOCK, 9);
 		ITEM_MAP.put(Items.SLIME_BALL, SLIME_BALL);
+		ITEM_MAP.put(Items.SLIME_BLOCK, SLIME_BALL);
+		ITEM_MULTIPLIER.put(Items.SLIME_BLOCK, 9);
 		ITEM_MAP.put(Items.CLAY_BALL, CLAY_BALL);
+		ITEM_MAP.put(Items.CLAY, CLAY_BALL);
+		ITEM_MULTIPLIER.put(Items.CLAY, 4);
 		ITEM_MAP.put(Items.LAPIS_LAZULI, LAPIS_LAZULI);
+		ITEM_MAP.put(Items.LAPIS_BLOCK, LAPIS_LAZULI);
+		ITEM_MULTIPLIER.put(Items.LAPIS_BLOCK, 9);
 		ITEM_MAP.put(Items.SUGAR, SUGAR);
+		ITEM_MAP.put(Items.SUGAR_CANE, SUGAR);
+		ITEM_MULTIPLIER.put(Items.SUGAR_CANE, 1);
 		ITEM_MAP.put(Items.BLAZE_POWDER, BLAZE_POWDER);
 		ITEM_MAP.put(Items.GLOWSTONE_DUST, GLOWSTONE_DUST);
+		ITEM_MAP.put(Items.GLOWSTONE, GLOWSTONE_DUST);
+		ITEM_MULTIPLIER.put(Items.GLOWSTONE, 4);
 		ITEM_MAP.put(Items.REDSTONE, REDSTONE);
+		ITEM_MAP.put(Items.REDSTONE_BLOCK, REDSTONE);
+		ITEM_MULTIPLIER.put(Items.REDSTONE_BLOCK, 9);
 		ITEM_MAP.put(Items.ENDER_PEARL, ENDER_PEARL);
 		// Meat (various raw meats)
 		ITEM_MAP.put(Items.BEEF, MEAT);
@@ -126,5 +143,13 @@ public enum Modifier {
 
 	public static @Nullable Modifier fromItem(Item item) {
 		return ITEM_MAP.get(item);
+	}
+
+	/**
+	 * Returns how many modifier units one item counts as.
+	 * Block items count as multiple (e.g. coal block = 9).
+	 */
+	public static int getMultiplier(Item item) {
+		return ITEM_MULTIPLIER.getOrDefault(item, 1);
 	}
 }

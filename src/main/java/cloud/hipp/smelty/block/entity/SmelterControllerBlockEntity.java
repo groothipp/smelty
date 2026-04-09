@@ -180,6 +180,12 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 				continue;
 			}
 
+			// Netherwart removes a random modifier
+			if (stack.isOf(Items.NETHER_WART)) {
+				processNetherwart(serverWorld, itemEntity, stack);
+				continue;
+			}
+
 			// Check for modifier items (coal, sugar, redstone, etc.)
 			cloud.hipp.smelty.material.Modifier modifier = cloud.hipp.smelty.material.Modifier.fromItem(stack.getItem());
 			if (modifier != null) {
@@ -305,10 +311,7 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 				unmeltedMaterials.addMaterial(entry.getKey(), entry.getValue());
 			}
 		}
-		// Transfer modifiers to the molten alloy (modifiers don't have heat requirements)
-		for (var entry : comp.getModifiers().entrySet()) {
-			moltenAlloy.addModifier(entry.getKey(), entry.getValue());
-		}
+		// Modifiers are NOT transferred from items — only explicitly added modifier items count
 	}
 
 	private static int getAlloyItemVolume(ItemStack stack) {
@@ -363,11 +366,14 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 								 cloud.hipp.smelty.material.Modifier modifier) {
 		if (moltenAlloy.isEmpty()) return; // Need molten alloy to add modifiers to
 
+		int multiplier = cloud.hipp.smelty.material.Modifier.getMultiplier(stack.getItem());
 		int itemCount = stack.getCount();
 		int processed = 0;
 
 		for (int i = 0; i < itemCount; i++) {
-			moltenAlloy.addModifier(modifier, AlloyComposition.MODIFIER_VOLUME);
+			for (int j = 0; j < multiplier; j++) {
+				moltenAlloy.addModifier(modifier, AlloyComposition.MODIFIER_VOLUME);
+			}
 			processed++;
 		}
 
@@ -381,6 +387,40 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 				itemEntity.discard();
 			} else {
 				stack.decrement(processed);
+			}
+			updateCachedColor();
+			markDirty();
+			needsClientSync = true;
+		}
+	}
+
+	private void processNetherwart(ServerWorld serverWorld, ItemEntity itemEntity, ItemStack stack) {
+		Map<cloud.hipp.smelty.material.Modifier, Integer> mods = moltenAlloy.getModifiers();
+		if (mods.isEmpty()) return;
+
+		int itemCount = stack.getCount();
+		int consumed = 0;
+
+		for (int i = 0; i < itemCount; i++) {
+			if (mods.isEmpty()) break;
+			// Pick a random modifier to remove entirely
+			var modList = new ArrayList<>(mods.keySet());
+			cloud.hipp.smelty.material.Modifier toRemove = modList.get(serverWorld.getRandom().nextInt(modList.size()));
+			mods.remove(toRemove);
+			consumed++;
+		}
+
+		if (consumed > 0) {
+			serverWorld.playSound(null, itemEntity.getX(), itemEntity.getY(), itemEntity.getZ(),
+					SoundEvents.BLOCK_BREWING_STAND_BREW, SoundCategory.BLOCKS, 0.5f, 1.0f);
+			serverWorld.spawnParticles(ParticleTypes.WITCH,
+					itemEntity.getX(), itemEntity.getY() + 0.2, itemEntity.getZ(),
+					8, 0.2, 0.1, 0.2, 0.02);
+
+			if (consumed >= itemCount) {
+				itemEntity.discard();
+			} else {
+				stack.decrement(consumed);
 			}
 			updateCachedColor();
 			markDirty();
@@ -439,29 +479,30 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 		List<ValveBlockEntity> valves = new ArrayList<>();
 
 		for (int y = minY + 1; y < minY + height; y++) {
-			// North wall (z == minZ): check z == minZ - 1
+			// North wall (z == minZ): valve at z-1 must face NORTH (away from smelter)
 			for (int x = minX; x < minX + width; x++) {
-				checkValveAt(serverWorld, new BlockPos(x, y, minZ - 1), valves);
+				checkValveAt(serverWorld, new BlockPos(x, y, minZ - 1), Direction.NORTH, valves);
 			}
-			// South wall (z == minZ + depth - 1): check z == minZ + depth
+			// South wall: valve at z+depth must face SOUTH
 			for (int x = minX; x < minX + width; x++) {
-				checkValveAt(serverWorld, new BlockPos(x, y, minZ + depth), valves);
+				checkValveAt(serverWorld, new BlockPos(x, y, minZ + depth), Direction.SOUTH, valves);
 			}
-			// West wall (x == minX): check x == minX - 1
+			// West wall: valve at x-1 must face WEST
 			for (int z = minZ; z < minZ + depth; z++) {
-				checkValveAt(serverWorld, new BlockPos(minX - 1, y, z), valves);
+				checkValveAt(serverWorld, new BlockPos(minX - 1, y, z), Direction.WEST, valves);
 			}
-			// East wall (x == minX + width - 1): check x == minX + width
+			// East wall: valve at x+width must face EAST
 			for (int z = minZ; z < minZ + depth; z++) {
-				checkValveAt(serverWorld, new BlockPos(minX + width, y, z), valves);
+				checkValveAt(serverWorld, new BlockPos(minX + width, y, z), Direction.EAST, valves);
 			}
 		}
 		return valves;
 	}
 
-	private void checkValveAt(ServerWorld world, BlockPos pos, List<ValveBlockEntity> valves) {
+	private void checkValveAt(ServerWorld world, BlockPos pos, Direction expectedFacing, List<ValveBlockEntity> valves) {
 		BlockState state = world.getBlockState(pos);
-		if (state.getBlock() instanceof ValveBlock && state.get(ValveBlock.OPEN)) {
+		if (state.getBlock() instanceof ValveBlock && state.get(ValveBlock.OPEN)
+				&& state.get(ValveBlock.FACING) == expectedFacing) {
 			if (world.getBlockEntity(pos) instanceof ValveBlockEntity valve) {
 				valves.add(valve);
 			}
@@ -514,10 +555,18 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 		this.width = result.width();
 		this.depth = result.depth();
 		this.height = result.height();
+		int oldHeat = this.heatLevel;
 		this.heatLevel = result.heatLevel();
 		this.minX = result.minX();
 		this.minY = result.minY();
 		this.minZ = result.minZ();
+
+		// Handle heat changes during revalidation
+		if (this.heatLevel > oldHeat) {
+			tryMeltUnmeltedMaterials();
+		} else if (this.heatLevel < oldHeat) {
+			checkSolidification();
+		}
 
 		if (wasInvalid || boundsChanged) {
 			int interiorW = width - 2;

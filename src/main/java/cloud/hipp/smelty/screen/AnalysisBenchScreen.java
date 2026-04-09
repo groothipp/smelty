@@ -1,7 +1,6 @@
 package cloud.hipp.smelty.screen;
 
 import cloud.hipp.smelty.material.AlloyComposition;
-import cloud.hipp.smelty.material.MaterialItems;
 import cloud.hipp.smelty.material.MaterialProperty;
 import cloud.hipp.smelty.material.Modifier;
 import cloud.hipp.smelty.material.SmeltyMaterial;
@@ -19,10 +18,21 @@ import org.lwjgl.glfw.GLFW;
 import java.util.Map;
 
 public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandler> {
-	private static final int BAR_WIDTH = 120;
+	private static final int BAR_WIDTH = 86;
 	private static final int BAR_HEIGHT = 8;
 	private static final int BAR_SPACING = 14;
-	private static final int LABEL_WIDTH = 50;
+	private static final int LABEL_WIDTH = 66;
+
+	// Custom display order: melting point first, then combat-relevant properties
+	private static final MaterialProperty[] DISPLAY_ORDER = {
+			MaterialProperty.MELTING_POINT,
+			MaterialProperty.HARDNESS,
+			MaterialProperty.TOUGHNESS,
+			MaterialProperty.MALLEABILITY,
+			MaterialProperty.DUCTILITY,
+			MaterialProperty.DENSITY,
+			MaterialProperty.CORROSION_RESISTANCE,
+	};
 
 	private TextFieldWidget nameField;
 	private ButtonWidget saveButton;
@@ -111,16 +121,15 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 		// Title (non-editable for pure materials)
 		int titleY = 10;
 		if (!data.isRenameable()) {
-			context.drawCenteredTextWithShadow(textRenderer, Text.literal(data.materialName()),
-					backgroundWidth / 2, titleY, 0xFFFFFFFF);
+			context.drawTextWithShadow(textRenderer, Text.literal(data.materialName()),
+					10, titleY, 0xFFFFFFFF);
 		}
-		// If renameable, the TextFieldWidget handles it
 
 		// Separator
 		int sepY = 26;
 		context.fill(10, sepY, backgroundWidth - 10, sepY + 1, 0xFF555555);
 
-		// Build composition for blended properties
+		// Build composition for property computation
 		AlloyComposition comp = new AlloyComposition();
 		for (Map.Entry<SmeltyMaterial, Integer> entry : data.composition().entrySet()) {
 			comp.addMaterial(entry.getKey(), entry.getValue());
@@ -129,56 +138,70 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 			comp.addModifier(entry.getKey(), entry.getValue());
 		}
 
-		// Draw property bars
+		// Draw property bars with modifier bonus annotations (custom order, melting point first)
 		int startY = 32;
-		MaterialProperty[] properties = MaterialProperty.values();
-		for (int i = 0; i < properties.length; i++) {
-			MaterialProperty prop = properties[i];
-			double value = comp.getFinalProperty(prop);
+		for (int i = 0; i < DISPLAY_ORDER.length; i++) {
+			MaterialProperty prop = DISPLAY_ORDER[i];
+			double finalValue = comp.getFinalProperty(prop);
+			double modBonus = comp.getModifierBonus(prop);
 			int barY = startY + i * BAR_SPACING;
-			drawPropertyBar(context, prop, value, barY);
+			if (prop == MaterialProperty.MELTING_POINT) {
+				drawMeltingPointRow(context, finalValue, modBonus, barY);
+			} else if (prop == MaterialProperty.DENSITY) {
+				drawDensityBar(context, finalValue, modBonus, barY);
+			} else {
+				drawPropertyBar(context, prop, finalValue, modBonus, barY);
+			}
 		}
 
-		// Composition breakdown at the bottom
-		int compY = startY + properties.length * BAR_SPACING + 6;
-		if (data.composition().size() > 1) {
-			context.fill(10, compY - 2, backgroundWidth - 10, compY - 1, 0xFF444444);
+		// Separator before composition section
+		int compY = startY + DISPLAY_ORDER.length * BAR_SPACING + 4;
+		context.fill(10, compY, backgroundWidth - 10, compY + 1, 0xFF444444);
+		compY += 5;
+
+		// Diversity bonus
+		double diversity = comp.getDiversityBonus();
+		if (diversity > 0) {
+			String diversityText = "+" + Math.round(diversity * 100) + "%";
+			context.drawTextWithShadow(textRenderer, Text.literal(diversityText),
+					10, compY, 0xFF88FF88);
+			compY += 12;
+		}
+
+		int sectionStartY = compY;
+		int rightCol = backgroundWidth / 2 + 2;
+
+		// Materials section (left column)
+		if (data.composition().size() > 0) {
+			context.drawTextWithShadow(textRenderer, Text.literal("Materials:"),
+					10, compY, 0xFFFFAA00);
+			compY += 12;
+
 			for (Map.Entry<SmeltyMaterial, Integer> entry : data.composition().entrySet()) {
-				String line = entry.getKey().getDisplayName() + ": " + entry.getValue() + "%";
+				String line = entry.getKey().getDisplayName() + " " + entry.getValue() + "%";
 				context.drawTextWithShadow(textRenderer, Text.literal(line),
 						14, compY, getMaterialColor(entry.getKey()));
 				compY += 11;
 			}
 		}
 
-		// Modifier breakdown
+		// Modifiers section (right column, same Y as materials)
 		if (!data.modifiers().isEmpty()) {
-			compY += 2;
-			context.fill(10, compY - 1, backgroundWidth - 10, compY, 0xFF444444);
-			compY += 2;
-			context.drawTextWithShadow(textRenderer, Text.literal("Modifiers"),
-					10, compY, 0xFFBB99FF);
-			compY += 12;
-			int totalMaterial = 0;
-			for (int v : data.composition().values()) totalMaterial += v;
+			int modY = sectionStartY;
+			context.drawTextWithShadow(textRenderer, Text.literal("Modifiers:"),
+					rightCol, modY, 0xFFBB99FF);
+			modY += 12;
+
 			for (Map.Entry<Modifier, Integer> entry : data.modifiers().entrySet()) {
-				// Denormalize: composition is normalized (materials sum to ~100),
-				// convert modifier units back to actual item count for a plate (2 ingots)
-				double items = totalMaterial > 0
-						? (double) entry.getValue() * MaterialItems.PLATE_VOLUME / (totalMaterial * AlloyComposition.MODIFIER_VOLUME)
-						: 0;
-				String countStr = items == Math.floor(items)
-						? String.valueOf((int) items)
-						: String.format("%.1f", items);
-				String line = getModifierName(entry.getKey()) + " " + countStr + "x";
-				context.drawTextWithShadow(textRenderer, Text.literal(line),
-						14, compY, 0xFF000000 | entry.getKey().getTintColor());
-				compY += 11;
+				context.drawTextWithShadow(textRenderer, Text.literal(getModifierName(entry.getKey())),
+						rightCol + 4, modY, 0xFF000000 | entry.getKey().getTintColor());
+				modY += 11;
 			}
+			if (modY > compY) compY = modY;
 		}
 	}
 
-	private void drawPropertyBar(DrawContext context, MaterialProperty prop, double value, int barY) {
+	private void drawPropertyBar(DrawContext context, MaterialProperty prop, double value, double modBonus, int barY) {
 		String label = getPropertyLabel(prop);
 		int labelX = 10;
 		int barX = labelX + LABEL_WIDTH;
@@ -201,10 +224,83 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 			context.fill(barX, barY, barX + fillWidth, barY + BAR_HEIGHT, color);
 		}
 
-		// Value text
+		// Value text + modifier bonus
 		String valueText = String.format("%.0f", value);
 		int textX = barX + BAR_WIDTH + 4;
 		context.drawTextWithShadow(textRenderer, Text.literal(valueText), textX, barY, 0xFFCCCCCC);
+
+		if (Math.abs(modBonus) >= 0.5) {
+			String bonusText = String.format("(%+.0f)", modBonus);
+			int bonusX = textX + textRenderer.getWidth(valueText) + 2;
+			int bonusColor = modBonus > 0 ? 0xFF88FF88 : 0xFFFF8888;
+			context.drawTextWithShadow(textRenderer, Text.literal(bonusText), bonusX, barY, bonusColor);
+		}
+	}
+
+	private void drawMeltingPointRow(DrawContext context, double value, double modBonus, int barY) {
+		int labelX = 10;
+		// Label
+		context.drawTextWithShadow(textRenderer, Text.literal("Melt Point"), labelX, barY, 0xFFAAAAAA);
+
+		// Just show the value as a number (no bar — melting point isn't good or bad)
+		String valueText = String.format("%.0f", value);
+		int textX = labelX + LABEL_WIDTH;
+		context.drawTextWithShadow(textRenderer, Text.literal(valueText), textX, barY, 0xFFFFAA00);
+
+		if (Math.abs(modBonus) >= 0.5) {
+			String bonusText = String.format("(%+.0f)", modBonus);
+			int bonusX = textX + textRenderer.getWidth(valueText) + 2;
+			int bonusColor = modBonus > 0 ? 0xFF88FF88 : 0xFFFF8888;
+			context.drawTextWithShadow(textRenderer, Text.literal(bonusText), bonusX, barY, bonusColor);
+		}
+	}
+
+	private void drawDensityBar(DrawContext context, double value, double modBonus, int barY) {
+		int labelX = 10;
+		int barX = labelX + LABEL_WIDTH;
+
+		// Label
+		context.drawTextWithShadow(textRenderer, Text.literal("Density"), labelX, barY, 0xFFAAAAAA);
+
+		// Bar background
+		context.fill(barX, barY, barX + BAR_WIDTH, barY + BAR_HEIGHT, 0xFF111111);
+		// Bar border
+		context.fill(barX - 1, barY - 1, barX + BAR_WIDTH + 1, barY, 0xFF444444);
+		context.fill(barX - 1, barY + BAR_HEIGHT, barX + BAR_WIDTH + 1, barY + BAR_HEIGHT + 1, 0xFF444444);
+		context.fill(barX - 1, barY, barX, barY + BAR_HEIGHT, 0xFF444444);
+		context.fill(barX + BAR_WIDTH, barY, barX + BAR_WIDTH + 1, barY + BAR_HEIGHT, 0xFF444444);
+
+		// Fill — density uses U-shape: extremes (near 0 or 100) are good, middle (50) is worst
+		int fillWidth = (int) (BAR_WIDTH * Math.min(1.0, value / 100.0));
+		if (fillWidth > 0) {
+			// U-shape color: distance from 50 determines quality
+			double distFrom50 = Math.abs(value - 50);
+			int color;
+			if (distFrom50 > 33) {
+				color = 0xFF44AA44; // green — far from middle
+			} else if (distFrom50 > 16) {
+				color = 0xFFCCAA44; // yellow — moderate
+			} else {
+				color = 0xFFCC4444; // red — near middle
+			}
+			context.fill(barX, barY, barX + fillWidth, barY + BAR_HEIGHT, color);
+		}
+
+		// Center marker at 50% to show the "worst" point
+		int midX = barX + BAR_WIDTH / 2;
+		context.fill(midX, barY, midX + 1, barY + BAR_HEIGHT, 0xFF666666);
+
+		// Value text + modifier bonus
+		String valueText = String.format("%.0f", value);
+		int textX = barX + BAR_WIDTH + 4;
+		context.drawTextWithShadow(textRenderer, Text.literal(valueText), textX, barY, 0xFFCCCCCC);
+
+		if (Math.abs(modBonus) >= 0.5) {
+			String bonusText = String.format("(%+.0f)", modBonus);
+			int bonusX = textX + textRenderer.getWidth(valueText) + 2;
+			int bonusColor = modBonus > 0 ? 0xFF88FF88 : 0xFFFF8888;
+			context.drawTextWithShadow(textRenderer, Text.literal(bonusText), bonusX, barY, bonusColor);
+		}
 	}
 
 	private int getBarColor(double value) {
@@ -223,10 +319,10 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 			case HARDNESS -> "Hardness";
 			case TOUGHNESS -> "Toughness";
 			case MELTING_POINT -> "Melt Point";
-			case MALLEABILITY -> "Malleabl.";
+			case MALLEABILITY -> "Malleability";
 			case DUCTILITY -> "Ductility";
 			case DENSITY -> "Density";
-			case CORROSION_RESISTANCE -> "Corr. Res.";
+			case CORROSION_RESISTANCE -> "Corr. Resist.";
 		};
 	}
 

@@ -83,6 +83,7 @@ public class ValveBlock extends BlockWithEntity {
 		if (!world.isClient()) {
 			boolean open = !state.get(OPEN);
 			world.setBlockState(pos, state.with(OPEN, open), Block.NOTIFY_ALL);
+			if (!open) clearValveFlow(world, pos);
 		}
 		return ActionResult.SUCCESS;
 	}
@@ -94,7 +95,14 @@ public class ValveBlock extends BlockWithEntity {
 			boolean powered = world.isReceivingRedstonePower(pos);
 			if (powered != state.get(OPEN)) {
 				world.setBlockState(pos, state.with(OPEN, powered), Block.NOTIFY_ALL);
+				if (!powered) clearValveFlow(world, pos);
 			}
+		}
+	}
+
+	private void clearValveFlow(World world, BlockPos pos) {
+		if (world.getBlockEntity(pos) instanceof ValveBlockEntity valve) {
+			valve.clearFlow();
 		}
 	}
 

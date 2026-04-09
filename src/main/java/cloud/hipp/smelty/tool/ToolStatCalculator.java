@@ -131,29 +131,25 @@ public final class ToolStatCalculator {
 	}
 
 	/**
-	 * Mining tier from hardness thresholds.
+	 * Mining tier from alloy tier (I-V maps to Wood-Netherite).
 	 * Returns the INCORRECT_FOR tag key for blocks this tool cannot mine.
 	 */
 	public static TagKey<Block> computeIncorrectBlocksTag(AlloyComposition comp) {
-		double hardness = comp.getFinalProperty(MaterialProperty.HARDNESS);
-		if (hardness >= 90) return BlockTags.INCORRECT_FOR_NETHERITE_TOOL;
-		if (hardness >= 60) return BlockTags.INCORRECT_FOR_DIAMOND_TOOL;
-		if (hardness >= 35) return BlockTags.INCORRECT_FOR_IRON_TOOL;
-		if (hardness >= 20) return BlockTags.INCORRECT_FOR_STONE_TOOL;
-		return BlockTags.INCORRECT_FOR_WOODEN_TOOL;
+		return switch (comp.getTier()) {
+			case 5 -> BlockTags.INCORRECT_FOR_NETHERITE_TOOL;
+			case 4 -> BlockTags.INCORRECT_FOR_DIAMOND_TOOL;
+			case 3 -> BlockTags.INCORRECT_FOR_IRON_TOOL;
+			case 2 -> BlockTags.INCORRECT_FOR_STONE_TOOL;
+			default -> BlockTags.INCORRECT_FOR_WOODEN_TOOL;
+		};
 	}
 
 	/**
-	 * Mining tier index from hardness thresholds.
+	 * Mining tier index from alloy tier (I-V maps to 0-4).
 	 * 0=Wood, 1=Stone, 2=Iron, 3=Diamond, 4=Netherite
 	 */
 	public static int computeMiningTierIndex(AlloyComposition comp) {
-		double hardness = comp.getFinalProperty(MaterialProperty.HARDNESS);
-		if (hardness >= 90) return 4;
-		if (hardness >= 60) return 3;
-		if (hardness >= 35) return 2;
-		if (hardness >= 20) return 1;
-		return 0;
+		return comp.getTier() - 1;
 	}
 
 	public static final String[] MINING_TIER_NAMES = {"Wood", "Stone", "Iron", "Diamond", "Netherite"};

@@ -58,6 +58,8 @@ public class AnalysisBenchBlockEntityRenderer
 		if (item == SmeltyItems.GOLD_PLATE) return Identifier.ofVanilla("textures/block/gold_block.png");
 		if (item == SmeltyItems.DIAMOND_PLATE) return Identifier.ofVanilla("textures/block/diamond_block.png");
 		if (item == SmeltyItems.NETHERITE_PLATE) return Identifier.ofVanilla("textures/block/netherite_block.png");
+		if (item == SmeltyItems.OBSIDIAN_PLATE) return Identifier.ofVanilla("textures/block/obsidian.png");
+		if (item == SmeltyItems.EMERALD_PLATE) return Identifier.ofVanilla("textures/block/emerald_block.png");
 		if (item == SmeltyItems.ALLOY_PLATE) return Identifier.ofVanilla("textures/block/iron_block.png");
 		return null;
 	}

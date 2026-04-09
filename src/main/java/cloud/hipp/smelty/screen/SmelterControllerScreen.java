@@ -2,7 +2,6 @@ package cloud.hipp.smelty.screen;
 
 import cloud.hipp.smelty.material.AlloyComposition;
 import cloud.hipp.smelty.material.ClientAlloyRegistry;
-import cloud.hipp.smelty.material.MaterialItems;
 import cloud.hipp.smelty.material.Modifier;
 import cloud.hipp.smelty.material.SmeltyMaterial;
 import net.minecraft.client.gl.RenderPipelines;
@@ -72,11 +71,9 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 		int volumeBarX = 60;
 		drawVolumeBar(context, volumeBarX, barY, data.currentVolume(), data.maxVolume());
 
-		// Volume text below bar (display in ingots)
-		int curIngots = data.currentVolume() / MaterialItems.UNITS_PER_INGOT;
-		int maxIngots = data.maxVolume() / MaterialItems.UNITS_PER_INGOT;
+		// Volume text below bar (display in units)
 		int percentage = data.maxVolume() > 0 ? (data.currentVolume() * 100 / data.maxVolume()) : 0;
-		String volText = curIngots + " / " + maxIngots + " ingots (" + percentage + "%)";
+		String volText = data.currentVolume() + " / " + data.maxVolume() + "u (" + percentage + "%)";
 		int volTextW = textRenderer.getWidth(volText);
 		context.drawTextWithShadow(textRenderer, Text.literal(volText),
 				volumeBarX + (VOLUME_BAR_WIDTH - volTextW) / 2, barY + BAR_HEIGHT + 5, 0xFF55FFFF);
@@ -99,111 +96,110 @@ public class SmelterControllerScreen extends HandledScreen<SmelterControllerScre
 
 		if (!hasMolten && !hasSolid && !hasModifiers) return;
 
-		// Separator line
-		context.fill(10, startY - 2, backgroundWidth - 10, startY - 1, 0xFF444444);
-
 		int y = startY;
 
-		// Determine if this is a pure single-material composition
-		Map<SmeltyMaterial, Integer> allMaterials = new java.util.EnumMap<>(SmeltyMaterial.class);
-		allMaterials.putAll(data.moltenBreakdown());
-		for (var entry : data.solidBreakdown().entrySet()) {
-			allMaterials.merge(entry.getKey(), entry.getValue(), Integer::sum);
-		}
-		boolean isPure = allMaterials.size() == 1 && !hasModifiers;
-
-		if (!isPure) {
-			// Show alloy name header
-			String alloyName = getCompositionName(allMaterials);
-			context.drawTextWithShadow(textRenderer, Text.literal(alloyName),
-					10, y, 0xFF55FFFF);
-			y += 12;
-		}
-
-		if (hasMolten) {
-			String header = isPure ? "Molten " + allMaterials.keySet().iterator().next().getDisplayName() : "Molten Materials";
-			context.drawTextWithShadow(textRenderer, Text.literal(header),
-					10, y, 0xFFFFAA00);
-			y += 12;
-
-			y = drawBreakdownLines(context, y, data.moltenBreakdown());
-		}
-
-		if (hasSolid) {
-			if (hasMolten) y += 2;
-			String header = isPure ? "Solid " + allMaterials.keySet().iterator().next().getDisplayName() : "Solid Materials";
-			context.drawTextWithShadow(textRenderer, Text.literal(header),
-					10, y, 0xFF888888);
-			y += 12;
-
-			y = drawBreakdownLines(context, y, data.solidBreakdown());
-		}
-
-		if (hasModifiers) {
-			if (hasMolten || hasSolid) y += 2;
-			context.fill(10, y - 1, backgroundWidth - 10, y, 0xFF444444);
-			y += 2;
-			context.drawTextWithShadow(textRenderer, Text.literal("Modifiers"),
-					10, y, 0xFFBB99FF);
-			y += 12;
-
-			for (Map.Entry<Modifier, Integer> entry : data.modifierBreakdown().entrySet()) {
-				int items = entry.getValue() / AlloyComposition.MODIFIER_VOLUME;
-				int remainder = entry.getValue() % AlloyComposition.MODIFIER_VOLUME;
-				String countStr = remainder > 0 ? String.format("%.1f", entry.getValue() / (double) AlloyComposition.MODIFIER_VOLUME) : String.valueOf(items);
-				String line = getModifierName(entry.getKey()) + " x" + countStr;
-				context.drawTextWithShadow(textRenderer, Text.literal(line),
-						14, y, 0xFF000000 | entry.getKey().getTintColor());
-				y += 11;
-			}
-		}
-	}
-
-	private int drawBreakdownLines(DrawContext context, int y, Map<SmeltyMaterial, Integer> breakdown) {
-		int totalMl = 0;
-		for (int ml : breakdown.values()) totalMl += ml;
-
-		for (Map.Entry<SmeltyMaterial, Integer> entry : breakdown.entrySet()) {
-			SmeltyMaterial material = entry.getKey();
-			int ml = entry.getValue();
-			int pct = totalMl > 0 ? (ml * 100 / totalMl) : 0;
-			String ingotStr = formatIngots(ml);
-
-			String line = material.getDisplayName() + " - " + ingotStr + " (" + pct + "%)";
-			context.drawTextWithShadow(textRenderer, Text.literal(line),
-					14, y, getMaterialColor(material));
-			y += 11;
-		}
-		return y;
-	}
-
-	private String getCompositionName(Map<SmeltyMaterial, Integer> allMaterials) {
-		SmelterData data = handler.getData();
+		// Build molten-only composition for diversity/name lookup (solid does NOT contribute)
 		AlloyComposition comp = new AlloyComposition();
-		for (Map.Entry<SmeltyMaterial, Integer> entry : allMaterials.entrySet()) {
+		for (var entry : data.moltenBreakdown().entrySet()) {
 			comp.addMaterial(entry.getKey(), entry.getValue());
 		}
 		if (data.modifierBreakdown() != null) {
-			for (Map.Entry<Modifier, Integer> entry : data.modifierBreakdown().entrySet()) {
+			for (var entry : data.modifierBreakdown().entrySet()) {
 				comp.addModifier(entry.getKey(), entry.getValue());
 			}
 		}
-		String name = ClientAlloyRegistry.getAlloyName(comp);
-		return name != null ? name : "Alloy";
-	}
 
-	private String formatIngots(int volume) {
-		int ingots = volume / MaterialItems.UNITS_PER_INGOT;
-		int remainder = volume % MaterialItems.UNITS_PER_INGOT;
-		if (remainder == 0) {
-			if (ingots % 9 == 0 && ingots >= 9) {
-				int blocks = ingots / 9;
-				return blocks + (blocks == 1 ? " block" : " blocks");
-			}
-			return ingots + (ingots == 1 ? " ingot" : " ingots");
+		// For name lookup, also check combined (molten + solid)
+		AlloyComposition combined = new AlloyComposition();
+		combined.mergeFrom(comp);
+		for (var entry : data.solidBreakdown().entrySet()) {
+			combined.addMaterial(entry.getKey(), entry.getValue());
 		}
-		double fractional = volume / (double) MaterialItems.UNITS_PER_INGOT;
-		return String.format("%.1f ingots", fractional);
+
+		// Alloy name header
+		String alloyName = ClientAlloyRegistry.getAlloyName(combined);
+		if (alloyName == null && combined.getMaterials().size() == 1 && !hasModifiers) {
+			alloyName = combined.getMaterials().keySet().iterator().next().getDisplayName();
+		} else if (alloyName == null) {
+			alloyName = "Alloy";
+		}
+		context.drawTextWithShadow(textRenderer, Text.literal(alloyName),
+				10, y, 0xFF55FFFF);
+		y += 12;
+
+		// Diversity bonus
+		double diversity = comp.getDiversityBonus();
+		if (diversity > 0) {
+			String diversityText = "+" + Math.round(diversity * 100) + "%";
+			context.drawTextWithShadow(textRenderer, Text.literal(diversityText),
+					10, y, 0xFF88FF88);
+			y += 12;
+		}
+
+		// Separator
+		context.fill(10, y, backgroundWidth - 10, y + 1, 0xFF444444);
+		y += 4;
+
+		int sectionStartY = y;
+		int rightCol = backgroundWidth / 2 + 2;
+
+		// Molten materials (left column)
+		if (hasMolten) {
+			context.drawTextWithShadow(textRenderer, Text.literal("Materials:"),
+					10, y, 0xFFFFAA00);
+			y += 12;
+
+			int moltenTotal = 0;
+			for (int ml : data.moltenBreakdown().values()) moltenTotal += ml;
+
+			for (var entry : data.moltenBreakdown().entrySet()) {
+				int pct = moltenTotal > 0 ? (entry.getValue() * 100 / moltenTotal) : 0;
+				String line = entry.getKey().getDisplayName() + " " + pct + "%";
+				context.drawTextWithShadow(textRenderer, Text.literal(line),
+						14, y, getMaterialColor(entry.getKey()));
+				y += 11;
+			}
+		}
+
+		// Modifiers (right column, same Y as materials)
+		if (hasModifiers) {
+			int modY = sectionStartY;
+			context.drawTextWithShadow(textRenderer, Text.literal("Modifiers:"),
+					rightCol, modY, 0xFFBB99FF);
+			modY += 12;
+
+			for (var entry : data.modifierBreakdown().entrySet()) {
+				int items = entry.getValue() / AlloyComposition.MODIFIER_VOLUME;
+				String line = getModifierName(entry.getKey()) + " " + items + "x";
+				context.drawTextWithShadow(textRenderer, Text.literal(line),
+						rightCol + 4, modY, 0xFF000000 | entry.getKey().getTintColor());
+				modY += 11;
+			}
+			// Ensure y advances past the longer column
+			if (modY > y) y = modY;
+		}
+
+		// Solid materials section
+		if (hasSolid) {
+			y += 2;
+			context.fill(10, y, backgroundWidth - 10, y + 1, 0xFF444444);
+			y += 4;
+
+			context.drawTextWithShadow(textRenderer, Text.literal("Solid:"),
+					10, y, 0xFF888888);
+			y += 12;
+
+			int solidTotal = 0;
+			for (int ml : data.solidBreakdown().values()) solidTotal += ml;
+
+			for (var entry : data.solidBreakdown().entrySet()) {
+				int pct = solidTotal > 0 ? (entry.getValue() * 100 / solidTotal) : 0;
+				String line = entry.getKey().getDisplayName() + " " + pct + "% (" + entry.getValue() + "u)";
+				context.drawTextWithShadow(textRenderer, Text.literal(line),
+						14, y, getMaterialColor(entry.getKey()));
+				y += 11;
+			}
+		}
 	}
 
 	private String getModifierName(Modifier modifier) {

@@ -146,15 +146,20 @@ public class CastingTableBlockEntity extends BlockEntity {
 
 	/**
 	 * Check whether the current mold accepts the given fluid.
-	 * Diamond mold only accepts pure diamond; ingot mold rejects pure diamond.
+	 * Diamond/emerald molds only accept unmodified pure diamond/emerald.
+	 * Ingot mold rejects unmodified pure diamond/emerald (must use their special molds).
+	 * Modified diamond/emerald is treated as an alloy and goes into ingot molds.
 	 */
 	private boolean acceptsFluid(AlloyComposition source) {
 		if (!hasPattern()) return true;
 		Item mold = patternItem.getItem();
+		boolean hasModifiers = !source.getModifiers().isEmpty();
 		boolean sourceIsPureDiamond = source.getMaterials().size() == 1
-				&& source.getMaterials().containsKey(SmeltyMaterial.DIAMOND);
+				&& source.getMaterials().containsKey(SmeltyMaterial.DIAMOND)
+				&& !hasModifiers;
 		boolean sourceIsPureEmerald = source.getMaterials().size() == 1
-				&& source.getMaterials().containsKey(SmeltyMaterial.EMERALD);
+				&& source.getMaterials().containsKey(SmeltyMaterial.EMERALD)
+				&& !hasModifiers;
 		if (mold == SmeltyItems.DIAMOND_MOLD) {
 			return sourceIsPureDiamond;
 		}
@@ -348,6 +353,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 	private ItemStack createMoldOutput(Item mold) {
 		Map<SmeltyMaterial, Integer> materials = fluidComposition.getMaterials();
 		boolean hasModifiers = !fluidComposition.getModifiers().isEmpty();
+		// Pure material without modifiers → vanilla item; with modifiers → alloy item
 		if (materials.size() == 1 && !hasModifiers) {
 			SmeltyMaterial material = materials.keySet().iterator().next();
 			if (mold == SmeltyItems.INGOT_MOLD || mold == SmeltyItems.DIAMOND_MOLD || mold == SmeltyItems.EMERALD_MOLD) {

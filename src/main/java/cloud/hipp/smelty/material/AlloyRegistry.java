@@ -26,18 +26,22 @@ public class AlloyRegistry extends PersistentState {
 		}
 	}
 
-	public void setAlloyName(String normalizedKey, String name) {
+	/**
+	 * Attempts to name an alloy. Returns false if the name is already taken by a different composition.
+	 */
+	public boolean setAlloyName(String normalizedKey, String name) {
+		String existingKey = nameToComposition.get(name.toLowerCase());
+		if (existingKey != null && !existingKey.equals(normalizedKey)) {
+			return false;
+		}
 		String oldName = compositionToName.get(normalizedKey);
 		if (oldName != null) {
 			nameToComposition.remove(oldName.toLowerCase());
 		}
-		String oldKey = nameToComposition.get(name.toLowerCase());
-		if (oldKey != null) {
-			compositionToName.remove(oldKey);
-		}
 		compositionToName.put(normalizedKey, name);
 		nameToComposition.put(name.toLowerCase(), normalizedKey);
 		markDirty();
+		return true;
 	}
 
 	public String getAlloyName(String normalizedKey) {

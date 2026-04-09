@@ -97,11 +97,19 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 		// Set durability
 		stack.set(DataComponentTypes.MAX_DAMAGE, durability);
 
-		// Set equippable component
+		// Set equippable component with dyeable alloy armor model
+		net.minecraft.registry.RegistryKey<net.minecraft.item.equipment.EquipmentAsset> alloyAsset =
+				net.minecraft.registry.RegistryKey.of(net.minecraft.item.equipment.EquipmentAssetKeys.REGISTRY_KEY,
+						net.minecraft.util.Identifier.of("smelty", "alloy"));
 		stack.set(DataComponentTypes.EQUIPPABLE,
 				EquippableComponent.builder(armorType.getEquipmentSlot())
 						.equipSound(SoundEvents.ITEM_ARMOR_EQUIP_IRON)
+						.model(alloyAsset)
 						.build());
+
+		// Set dyed color so the dyeable equipment model tints with the alloy color
+		stack.set(DataComponentTypes.DYED_COLOR,
+				new net.minecraft.component.type.DyedColorComponent(normalizedComp.getBlendedColor()));
 
 		// Set attribute modifiers
 		AttributeModifiersComponent.Builder attrBuilder = AttributeModifiersComponent.builder();
@@ -124,9 +132,11 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 		// Set enchantability
 		stack.set(DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14));
 
-		// Hide vanilla attribute modifiers tooltip (replaced by custom Smelty tooltip)
+		// Hide vanilla attribute modifiers and dyed color tooltips (replaced by custom Smelty tooltip)
 		stack.set(DataComponentTypes.TOOLTIP_DISPLAY,
-				net.minecraft.component.type.TooltipDisplayComponent.DEFAULT.with(DataComponentTypes.ATTRIBUTE_MODIFIERS, true));
+				net.minecraft.component.type.TooltipDisplayComponent.DEFAULT
+						.with(DataComponentTypes.ATTRIBUTE_MODIFIERS, true)
+						.with(DataComponentTypes.DYED_COLOR, true));
 
 		return stack;
 	}
