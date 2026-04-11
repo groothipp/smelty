@@ -62,17 +62,8 @@ public class AlloyToolItem extends Item {
 			if (amount > 0) headComp.addMaterial(mats[i], amount);
 		}
 
-		// Extract handle composition (floats 9-15)
-		boolean handleIsSticks = true;
-		for (int i = 9; i < 9 + mats.length; i++) {
-			if (Math.round(floats.get(i)) > 0) {
-				handleIsSticks = false;
-				break;
-			}
-		}
-
-		// Pure material head + sticks = material name
-		if (headComp.getMaterials().size() == 1 && handleIsSticks) {
+		// Pure single-material head with no modifiers = material name (regardless of handle)
+		if (headComp.getMaterials().size() == 1 && !hasHeadModifiers(cmd)) {
 			SmeltyMaterial material = headComp.getMaterials().keySet().iterator().next();
 			return Text.literal(material.getDisplayName() + " " + toolTypeName);
 		}
@@ -89,6 +80,16 @@ public class AlloyToolItem extends Item {
 			return Text.literal(name + " " + toolTypeName);
 		}
 		return Text.literal("Alloy " + toolTypeName);
+	}
+
+	/** Check if any head modifiers are present (flags 0..10). */
+	private static boolean hasHeadModifiers(CustomModelDataComponent cmd) {
+		var flags = cmd.flags();
+		int modCount = cloud.hipp.smelty.material.Modifier.values().length;
+		for (int i = 0; i < modCount && i < flags.size(); i++) {
+			if (flags.get(i)) return true;
+		}
+		return false;
 	}
 
 	/**
