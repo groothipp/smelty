@@ -52,29 +52,28 @@ MODIFIERS = [
         "density": 0.55,  # uses density mode, not count
         "seed": 1,
     }),
-    ("bonemeal", "edge", {
+    ("bonemeal", "marbling", {
         "color": (0xE8, 0xE4, 0xD4),
-        "fade_steps": 1,  # thinner edge, faster falloff
+        "seed": 40,
     }),
-    ("slime", "stripe", {
+    ("slime", "cell_noise", {
         "color": (0x7E, 0xBF, 0x6E),
-        "direction": 1,  # (x+y) diagonal
-        "period": 4,
-        "width": 1,
+        "seed": 20,
+        "num_points": 6,
     }),
-    ("clay", "stripe", {
+    ("clay", "cell_noise_inverted", {
         "color": (0xA4, 0x90, 0x7C),
-        "direction": -1,  # (x-y) diagonal (perpendicular)
-        "period": 4,
-        "width": 1,
+        "seed": 30,
+        "num_points": 6,
     }),
-    ("lapis", "edge", {
-        "color": (0x34, 0x5E, 0xC3),
-        "fade_steps": 1,  # thinner edge, faster falloff
+    ("lapis", "mineral_veins", {
+        "color_bright": (0x6B, 0x8E, 0xE8),  # lighter blue
+        "color_dim": (0x34, 0x5E, 0xC3),      # deep lapis blue
+        "seed": 50,
     }),
     ("sugar", "speckle", {
-        # "coated in sugar and sugar cane bits" — more white than green
-        "colors": [(0xF0, 0xF0, 0xF0), (0xF0, 0xF0, 0xF0), (0xF0, 0xF0, 0xF0), (0x55, 0xCC, 0x33)],
+        # Varying shades of white, like sugar crystals
+        "colors": [(0xFF, 0xFF, 0xFF), (0xF0, 0xF0, 0xF0), (0xE0, 0xE0, 0xE0)],
         "density": 0.45,
         "seed": 2,
     }),
@@ -85,34 +84,33 @@ MODIFIERS = [
         "seed": 3,
     }),
     ("glowstone", "speckle_animated", {
-        # Bright golden dots, much slower pulsing — visually luminous
         "colors": [(0xFF, 0xEE, 0x66)],
         "density": 0.40,
         "seed": 4,
         "frames": 16,
         "min_brightness": 0.55,
-        "frametime": 10,  # much slower pulse
+        "frametime": 6,
     }),
     ("redstone", "speckle_animated", {
-        # Bright red dots, same slow pulse as glowstone — visually luminous
-        "colors": [(0xFF, 0x33, 0x33)],
-        "density": 0.40,
+        "colors": [(0xAA, 0x11, 0x11)],
+        "density": 0.60,
         "seed": 5,
         "frames": 16,
         "min_brightness": 0.55,
-        "frametime": 10,  # same slow pulse as glowstone
+        "frametime": 6,
     }),
-    ("enderpearl", "static_swirl_animated", {
-        # Static swirl shapes, color gradient sweeps across them over time
+    ("enderpearl", "julia_animated", {
+        # Julia set with spiral/helix-like arms (Siegel disk region)
         "color_a": (0x0C, 0x7E, 0x5E),  # green-teal
         "color_b": (0x4C, 0x3E, 0x6E),  # purple-teal
+        "c_real": 0.285,
+        "c_imag": 0.01,
         "frames": 32,
-        "frametime": 3,
+        "frametime": 8,
         "seed": 6,
     }),
-    ("meat", "grainy", {
+    ("meat", "perlin", {
         "colors": [(0xBB, 0x33, 0x33), (0x88, 0x22, 0x22)],
-        "density": 0.35,
         "seed": 7,
     }),
 ]
@@ -175,62 +173,196 @@ def deterministic_scatter(mask, seed, count):
     return selected
 
 
+# ─── Noise Utilities ──────────────────────────────────────────────────────
+
+def _noise_grid(seed, grid_size=5):
+    """Generate a grid_size x grid_size grid of random floats [0, 1) from a seed."""
+    grid = []
+    h = int(hashlib.md5(f"noise_{seed}".encode()).hexdigest(), 16)
+    for i in range(grid_size * grid_size):
+        h = (h * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+        grid.append((h & 0xFFFF) / 65535.0)
+    return grid, grid_size
+
+
+def _sample_noise(grid, grid_size, x, y, w, h):
+    """Bilinear interpolation of noise grid at pixel (x, y) in a w×h image."""
+    # Map pixel coords to grid coords
+    gx = x / w * (grid_size - 1)
+    gy = y / h * (grid_size - 1)
+    x0 = int(gx)
+    y0 = int(gy)
+    x1 = min(x0 + 1, grid_size - 1)
+    y1 = min(y0 + 1, grid_size - 1)
+    fx = gx - x0
+    fy = gy - y0
+    # Bilinear interpolation
+    v00 = grid[y0 * grid_size + x0]
+    v10 = grid[y0 * grid_size + x1]
+    v01 = grid[y1 * grid_size + x0]
+    v11 = grid[y1 * grid_size + x1]
+    top = v00 * (1 - fx) + v10 * fx
+    bot = v01 * (1 - fx) + v11 * fx
+    return top * (1 - fy) + bot * fy
+
+
+def _pixel_hash(seed, x, y):
+    """Fast per-pixel hash for color variation, independent of noise."""
+    h = int(hashlib.md5(f"px_{seed}_{x}_{y}".encode()).hexdigest()[:8], 16)
+    return h
+
+
+def noise_powder(mask, w, h, colors, seed, density):
+    """Generate powder positions using value noise.
+
+    Returns list of (color, x, y, alpha) tuples for pixels that have powder.
+    Noise creates organic clumps — denser in some areas, sparser in others.
+    A second noise layer at a different frequency adds fine-grain variation.
+    """
+    grid1, gs1 = _noise_grid(seed, grid_size=5)  # broad bias so it's not perfectly uniform
+
+    threshold = 1.0 - density
+
+    result = []
+    for x, y in sorted(mask):
+        n1 = _sample_noise(grid1, gs1, x, y, w, h)
+        # Raw per-pixel hash — no interpolation, fully granular
+        px = _pixel_hash(seed + 50, x, y)
+        n_raw = (px & 0xFFFF) / 65535.0
+        # Mostly raw grain with a slight broad bias for subtle clustering
+        n = n1 * 0.15 + n_raw * 0.85
+        if n > threshold:
+            # How far above threshold determines alpha (more = more opaque)
+            strength = (n - threshold) / (1.0 - threshold)
+            alpha = int(140 + 115 * strength)  # range 140-255
+            color = colors[_pixel_hash(seed, x, y) % len(colors)]
+            result.append((color, x, y, alpha))
+    return result
+
+
 # ─── Effect Generators ────────────────────────────────────────────────────
 
 def generate_speckle(mask, w, h, colors, seed, density=None, count_per_color=None):
-    """Generate speckled dots with baked-in colors.
-
-    If density is provided, uses density-based placement (fraction of mask pixels).
-    Otherwise falls back to count_per_color fixed-count placement.
-    """
+    """Generate powder/dust overlay using noise-based coverage."""
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    if density is not None:
-        # Density-based: each pixel in mask has a chance to be a dot
-        h_val = int(hashlib.md5(f"speckle_{seed}".encode()).hexdigest(), 16)
-        for x, y in sorted(mask):
-            h_val = (h_val * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
-            if (h_val & 0xFF) / 255.0 < density:
-                color = colors[(h_val >> 8) % len(colors)]
-                img.putpixel((x, y), (*color, 255))
-    else:
-        cpc = count_per_color or 4
-        for ci, color in enumerate(colors):
-            positions = deterministic_scatter(mask, seed * 100 + ci, cpc)
-            for x, y in positions:
-                img.putpixel((x, y), (*color, 255))
+    d = density if density is not None else 0.35
+    for color, x, y, alpha in noise_powder(mask, w, h, colors, seed, d):
+        img.putpixel((x, y), (*color, alpha))
     return img
 
 
 def generate_speckle_animated(mask, w, h, colors, seed, frames, min_brightness,
                               density=None, count_per_color=None):
-    """Generate animated speckle dots that pulse in brightness."""
-    # Determine dot positions
-    dot_positions = []  # list of (color, x, y)
-    if density is not None:
-        h_val = int(hashlib.md5(f"speckle_{seed}".encode()).hexdigest(), 16)
-        for x, y in sorted(mask):
-            h_val = (h_val * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
-            if (h_val & 0xFF) / 255.0 < density:
-                color = colors[(h_val >> 8) % len(colors)]
-                dot_positions.append((color, x, y))
-    else:
-        cpc = count_per_color or 5
-        for ci, color in enumerate(colors):
-            positions = deterministic_scatter(mask, seed * 100 + ci, cpc)
-            for x, y in positions:
-                dot_positions.append((color, x, y))
+    """Generate animated powder overlay that pulses in brightness."""
+    d = density if density is not None else 0.35
+    powder = noise_powder(mask, w, h, colors, seed, d)
 
-    # Create a tall image with all frames stacked vertically
     img = Image.new("RGBA", (w, h * frames), (0, 0, 0, 0))
     for frame in range(frames):
-        # Sinusoidal brightness pulse
         t = frame / frames
         brightness = min_brightness + (1.0 - min_brightness) * (0.5 + 0.5 * math.sin(2 * math.pi * t))
-        for color, x, y in dot_positions:
+        for color, x, y, alpha in powder:
             r = int(color[0] * brightness)
             g = int(color[1] * brightness)
             b = int(color[2] * brightness)
-            img.putpixel((x, y + frame * h), (r, g, b, 255))
+            a = int(alpha * (0.7 + 0.3 * brightness))  # alpha also pulses slightly
+            img.putpixel((x, y + frame * h), (r, g, b, a))
+    return img
+
+
+def generate_marbling(mask, w, h, color, seed):
+    """Generate marble veins running through the item.
+
+    Uses domain-warped noise: the coordinates are distorted by one noise field
+    before sampling a second, creating the organic winding veins of marble.
+    """
+    # Multiple noise grids at different frequencies
+    warp_x_grid, warp_x_gs = _noise_grid(seed, grid_size=4)
+    warp_y_grid, warp_y_gs = _noise_grid(seed + 100, grid_size=4)
+    vein_grid, vein_gs = _noise_grid(seed + 200, grid_size=6)
+    detail_grid, detail_gs = _noise_grid(seed + 300, grid_size=10)
+
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for x, y in sorted(mask):
+        # Domain warping: offset the lookup coordinates by noise
+        wx = _sample_noise(warp_x_grid, warp_x_gs, x, y, w, h) - 0.5
+        wy = _sample_noise(warp_y_grid, warp_y_gs, x, y, w, h) - 0.5
+        warp_strength = 6.0
+        warped_x = x + wx * warp_strength
+        warped_y = y + wy * warp_strength
+
+        # Sample vein pattern at warped coordinates
+        n1 = _sample_noise(vein_grid, vein_gs, warped_x % w, warped_y % h, w, h)
+        n2 = _sample_noise(detail_grid, detail_gs, warped_x % w, warped_y % h, w, h)
+
+        # Create veins: sharp falloff around the 0.5 midpoint of noise
+        vein_val = abs(n1 * 0.7 + n2 * 0.3 - 0.5) * 2.0  # 0 = vein center, 1 = far from vein
+        vein_val = max(0.0, 1.0 - vein_val * 3.0)  # sharpen into thin veins
+
+        if vein_val > 0.05:
+            alpha = int(200 * vein_val)
+            img.putpixel((x, y), (*color, min(alpha, 220)))
+    return img
+
+
+def generate_starfield(mask, w, h, color_bright, color_dim, seed, density):
+    """Generate scattered bright points on a subtle dim field, like lapis lazuli flecks.
+
+    Bright points are sparse and intense (the "stars"), with a faint dim noise
+    underneath for a subtle base shimmer.
+    """
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+
+    # Subtle dim base — very faint smooth noise
+    base_grid, base_gs = _noise_grid(seed, grid_size=5)
+    for x, y in sorted(mask):
+        n = _sample_noise(base_grid, base_gs, x, y, w, h)
+        if n > 0.4:
+            alpha = int(50 * (n - 0.4) / 0.6)  # very faint, 0-50 alpha
+            img.putpixel((x, y), (*color_dim, alpha))
+
+    # Bright star points — sparse, high intensity
+    for x, y in sorted(mask):
+        px = _pixel_hash(seed + 50, x, y)
+        chance = (px & 0xFFFF) / 65535.0
+        if chance < density:
+            # Vary brightness per star
+            brightness = 0.7 + 0.3 * ((px >> 16) & 0xFF) / 255.0
+            r = int(color_bright[0] * brightness)
+            g = int(color_bright[1] * brightness)
+            b = int(color_bright[2] * brightness)
+            img.putpixel((x, y), (r, g, b, 220))
+    return img
+
+
+def generate_mineral_veins(mask, w, h, color_bright, color_dim, seed):
+    """Generate wavy horizontal bands of varying blue, like lapis ore layers in stone.
+
+    Uses noise-warped horizontal bands to create organic mineral vein patterns.
+    """
+    warp_grid, warp_gs = _noise_grid(seed, grid_size=5)
+    band_grid, band_gs = _noise_grid(seed + 100, grid_size=4)
+
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for x, y in sorted(mask):
+        # Warp the y coordinate for wavy bands
+        warp = _sample_noise(warp_grid, warp_gs, x, y, w, h) - 0.5
+        warped_y = y + warp * 5.0
+        # Create bands using sin of warped y
+        band_val = math.sin(warped_y * 1.2) * 0.5 + 0.5  # 0-1
+        # Add some broad noise to break up uniformity
+        broad = _sample_noise(band_grid, band_gs, x, y, w, h)
+        combined = band_val * 0.6 + broad * 0.4
+
+        # Threshold into vein regions
+        if combined > 0.35:
+            strength = (combined - 0.35) / 0.65
+            # Blend between dim and bright based on strength
+            r = int(color_dim[0] * (1 - strength) + color_bright[0] * strength)
+            g = int(color_dim[1] * (1 - strength) + color_bright[1] * strength)
+            b = int(color_dim[2] * (1 - strength) + color_bright[2] * strength)
+            alpha = int(120 + 100 * strength)
+            img.putpixel((x, y), (r, g, b, alpha))
     return img
 
 
@@ -247,6 +379,87 @@ def generate_edge(mask, w, h, color, fade_steps):
     return img
 
 
+def generate_cell_noise(mask, w, h, color, seed, num_points=6):
+    """Generate inverted Worley/Voronoi cell noise — cell edges are visible, interiors are transparent.
+
+    Scatters seed points, computes distance to nearest point for each pixel,
+    then inverts so pixels NEAR cell edges (where two cells meet) are opaque.
+    """
+    # Generate deterministic seed points within the bounding box of the mask
+    pixels = sorted(mask)
+    if not pixels:
+        return Image.new("RGBA", (w, h), (0, 0, 0, 0))
+
+    min_x = min(x for x, y in pixels)
+    max_x = max(x for x, y in pixels)
+    min_y = min(y for x, y in pixels)
+    max_y = max(y for x, y in pixels)
+
+    points = []
+    h_val = int(hashlib.md5(f"cell_{seed}".encode()).hexdigest(), 16)
+    for _ in range(num_points):
+        h_val = (h_val * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+        px = min_x + (h_val & 0xFF) % (max_x - min_x + 1)
+        h_val = (h_val * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+        py = min_y + (h_val & 0xFF) % (max_y - min_y + 1)
+        points.append((px, py))
+
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for x, y in mask:
+        # Find distances to the two nearest seed points
+        dists = sorted(math.sqrt((x - px) ** 2 + (y - py) ** 2) for px, py in points)
+        d1 = dists[0] if len(dists) > 0 else 0
+        d2 = dists[1] if len(dists) > 1 else d1
+
+        # Edge factor: small difference between nearest and second-nearest = on an edge
+        edge = d2 - d1
+        # Normalize — at 16x16, typical edge values are 0-4
+        edge_norm = min(edge / 2.5, 1.0)
+        # Invert: 0 = on edge (fully opaque), 1 = deep inside cell (transparent)
+        alpha = int(200 * (1.0 - edge_norm))
+        if alpha > 20:
+            img.putpixel((x, y), (*color, alpha))
+    return img
+
+
+def generate_cell_noise_inverted(mask, w, h, color, seed, num_points=6):
+    """Generate Worley/Voronoi cell noise — cell interiors are visible, edges are transparent.
+
+    Inverse of generate_cell_noise: looks like dried/cracked mud chunks with gaps between them.
+    """
+    pixels = sorted(mask)
+    if not pixels:
+        return Image.new("RGBA", (w, h), (0, 0, 0, 0))
+
+    min_x = min(x for x, y in pixels)
+    max_x = max(x for x, y in pixels)
+    min_y = min(y for x, y in pixels)
+    max_y = max(y for x, y in pixels)
+
+    points = []
+    h_val = int(hashlib.md5(f"cell_{seed}".encode()).hexdigest(), 16)
+    for _ in range(num_points):
+        h_val = (h_val * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+        px = min_x + (h_val & 0xFF) % (max_x - min_x + 1)
+        h_val = (h_val * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+        py = min_y + (h_val & 0xFF) % (max_y - min_y + 1)
+        points.append((px, py))
+
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for x, y in mask:
+        dists = sorted(math.sqrt((x - px) ** 2 + (y - py) ** 2) for px, py in points)
+        d1 = dists[0] if len(dists) > 0 else 0
+        d2 = dists[1] if len(dists) > 1 else d1
+
+        edge = d2 - d1
+        edge_norm = min(edge / 2.5, 1.0)
+        # NOT inverted: large edge diff = deep inside cell = opaque
+        alpha = int(200 * edge_norm)
+        if alpha > 20:
+            img.putpixel((x, y), (*color, alpha))
+    return img
+
+
 def generate_stripe(mask, w, h, color, direction, period, width):
     """Generate diagonal stripes."""
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -257,6 +470,91 @@ def generate_stripe(mask, w, h, color, direction, period, width):
             val = (x - y + 100) % period  # +100 to avoid negative modulo
         if val < width:
             img.putpixel((x, y), (*color, 180))
+    return img
+
+
+def generate_julia_animated(mask, w, h, color_a, color_b, c_real, c_imag, frames, seed):
+    """Generate a Julia set fractal that zooms in over time.
+
+    Each frame renders the Julia set at a progressively deeper zoom level,
+    centered on an interesting boundary point. Colors are derived from
+    iteration count banding, blending between color_a and color_b.
+    The animation loops by zooming in for half the frames then back out.
+    """
+    pixels = sorted(mask)
+    if not pixels:
+        return Image.new("RGBA", (w, h * frames), (0, 0, 0, 0))
+
+    min_x = min(x for x, y in pixels)
+    max_x = max(x for x, y in pixels)
+    min_y = min(y for x, y in pixels)
+    max_y = max(y for x, y in pixels)
+    span_x = max(max_x - min_x, 1)
+    span_y = max(max_y - min_y, 1)
+    cx = (min_x + max_x) / 2.0
+    cy = (min_y + max_y) / 2.0
+
+    max_iter = 50
+    escape_radius = 4.0
+    base_scale = 3.0 / max(span_x, span_y)
+    max_zoom = 8.0  # how far we zoom in at peak
+
+    # Find a zoom target: a point on the Julia set boundary
+    # Search for a pixel whose iteration count is in the mid-range (interesting detail)
+    best_target = (0.0, 0.0)
+    best_score = -1
+    target_iter = max_iter // 3
+    for x, y in pixels[::2]:  # sample every other pixel for speed
+        zr = (x - cx) * base_scale
+        zi = (y - cy) * base_scale
+        iteration = 0
+        for iteration in range(max_iter):
+            if zr * zr + zi * zi > escape_radius:
+                break
+            zr, zi = zr * zr - zi * zi + c_real, 2 * zr * zi + c_imag
+        score = max_iter - abs(iteration - target_iter)
+        if score > best_score:
+            best_score = score
+            best_target = ((x - cx) * base_scale, (y - cy) * base_scale)
+
+    zoom_cr, zoom_ci = best_target
+
+    img = Image.new("RGBA", (w, h * frames), (0, 0, 0, 0))
+    for frame in range(frames):
+        # Ping-pong zoom: 0→1→0 over the frame range for seamless looping
+        t = frame / frames
+        ping_pong = 1.0 - abs(2.0 * t - 1.0)  # 0 at edges, 1 at middle
+        zoom = 1.0 + (max_zoom - 1.0) * ping_pong
+        scale = base_scale / zoom
+        # Pan toward the zoom target as we zoom in
+        pan_r = zoom_cr * (1.0 - 1.0 / zoom)
+        pan_i = zoom_ci * (1.0 - 1.0 / zoom)
+
+        for x, y in pixels:
+            zr = (x - cx) * scale + pan_r
+            zi = (y - cy) * scale + pan_i
+
+            iteration = 0
+            for iteration in range(max_iter):
+                zr2 = zr * zr
+                zi2 = zi * zi
+                if zr2 + zi2 > escape_radius:
+                    break
+                zi = 2 * zr * zi + c_imag
+                zr = zr2 - zi2 + c_real
+
+            if iteration < max_iter - 1:
+                # Use iteration banding for color
+                smooth_iter = iteration + 1 - math.log(math.log(max(zr*zr + zi*zi, 1.001))) / math.log(2)
+                band = (math.sin(smooth_iter * 0.8) + 1.0) / 2.0  # oscillate 0-1
+                r = int(color_a[0] * (1 - band) + color_b[0] * band)
+                g = int(color_a[1] * (1 - band) + color_b[1] * band)
+                b = int(color_a[2] * (1 - band) + color_b[2] * band)
+                # Alpha: boundary pixels (low iteration) are most opaque
+                norm_iter = smooth_iter / max_iter
+                alpha = int(200 * (1.0 - min(norm_iter * 1.5, 1.0)))
+                if alpha > 15:
+                    img.putpixel((x, y + frame * h), (r, g, b, alpha))
     return img
 
 
@@ -317,6 +615,33 @@ def generate_static_swirl_animated(mask, w, h, color_a, color_b, frames, seed):
     return img
 
 
+def generate_perlin(mask, w, h, colors, seed):
+    """Generate smooth Perlin-like noise that blends between colors.
+
+    Uses multiple octaves of value noise for organic, fleshy-looking patterns.
+    """
+    grid1, gs1 = _noise_grid(seed, grid_size=4)       # large smooth shapes
+    grid2, gs2 = _noise_grid(seed + 100, grid_size=7)  # medium detail
+    grid3, gs3 = _noise_grid(seed + 200, grid_size=11) # fine detail
+
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for x, y in sorted(mask):
+        n1 = _sample_noise(grid1, gs1, x, y, w, h)
+        n2 = _sample_noise(grid2, gs2, x, y, w, h)
+        n3 = _sample_noise(grid3, gs3, x, y, w, h)
+        # Octave blend — mostly smooth with some detail
+        n = n1 * 0.5 + n2 * 0.35 + n3 * 0.15
+        # Blend between colors based on noise value
+        c0 = colors[0]
+        c1 = colors[1] if len(colors) > 1 else colors[0]
+        r = int(c0[0] * (1 - n) + c1[0] * n)
+        g = int(c0[1] * (1 - n) + c1[1] * n)
+        b = int(c0[2] * (1 - n) + c1[2] * n)
+        alpha = int(140 + 80 * n)  # 140-220 range
+        img.putpixel((x, y), (r, g, b, alpha))
+    return img
+
+
 def generate_grainy(mask, w, h, colors, density, seed):
     """Generate a grainy/fleshy noise pattern."""
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -333,26 +658,47 @@ def generate_grainy(mask, w, h, colors, density, seed):
 
 def generate_overlay_for_item(item_name, mod_name, effect_type, params, mask, w, h):
     """Generate a single overlay texture and save it."""
+    # Mix item name into the seed so each item × modifier combo gets a unique pattern
+    item_hash = int(hashlib.md5(item_name.encode()).hexdigest()[:8], 16)
+    unique_seed = params["seed"] * 10000 + item_hash if "seed" in params else item_hash
+
     if effect_type == "speckle":
-        img = generate_speckle(mask, w, h, params["colors"], params["seed"],
+        img = generate_speckle(mask, w, h, params["colors"], unique_seed,
                                density=params.get("density"),
                                count_per_color=params.get("count_per_color"))
     elif effect_type == "speckle_animated":
-        img = generate_speckle_animated(mask, w, h, params["colors"], params["seed"],
+        img = generate_speckle_animated(mask, w, h, params["colors"], unique_seed,
                                         params["frames"], params["min_brightness"],
                                         density=params.get("density"),
                                         count_per_color=params.get("count_per_color"))
     elif effect_type == "edge":
         img = generate_edge(mask, w, h, params["color"], params["fade_steps"])
+    elif effect_type == "marbling":
+        img = generate_marbling(mask, w, h, params["color"], unique_seed)
+    elif effect_type == "mineral_veins":
+        img = generate_mineral_veins(mask, w, h, params["color_bright"], params["color_dim"],
+                                     unique_seed)
+    elif effect_type == "cell_noise":
+        img = generate_cell_noise(mask, w, h, params["color"], unique_seed,
+                                  num_points=params.get("num_points", 6))
+    elif effect_type == "cell_noise_inverted":
+        img = generate_cell_noise_inverted(mask, w, h, params["color"], unique_seed,
+                                           num_points=params.get("num_points", 6))
     elif effect_type == "stripe":
         img = generate_stripe(mask, w, h, params["color"],
                               params["direction"], params["period"], params["width"])
+    elif effect_type == "julia_animated":
+        img = generate_julia_animated(mask, w, h, params["color_a"], params["color_b"],
+                                      params["c_real"], params["c_imag"],
+                                      params["frames"], unique_seed)
     elif effect_type == "static_swirl_animated":
         img = generate_static_swirl_animated(mask, w, h, params["color_a"], params["color_b"],
-                                             params["frames"], params["seed"])
+                                             params["frames"], unique_seed)
+    elif effect_type == "perlin":
+        img = generate_perlin(mask, w, h, params["colors"], unique_seed)
     elif effect_type == "grainy":
         img = generate_grainy(mask, w, h, params["colors"],
-                              params["density"], params["seed"])
+                              params["density"], unique_seed)
     else:
         raise ValueError(f"Unknown effect type: {effect_type}")
 
@@ -363,7 +709,7 @@ def generate_overlay_for_item(item_name, mod_name, effect_type, params, mask, w,
     print(f"  Generated: {short}_{mod_name}.png")
 
     # Write .mcmeta for animated textures
-    if effect_type in ("speckle_animated", "static_swirl_animated"):
+    if effect_type in ("speckle_animated", "static_swirl_animated", "julia_animated"):
         mcmeta = {
             "animation": {
                 "frametime": params["frametime"],
