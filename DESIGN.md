@@ -67,7 +67,7 @@ Where `n` is the number of that modifier item thrown into the smelter. Stacking 
 | Slime Ball    | Slime Ball, Slime Block (9x)   | Ductility +20                                       | 20        | 0.5 | 0x7EBF6E   |
 | Clay Ball     | Clay Ball, Clay Block (4x)     | Malleability +20                                    | 20        | 0.5 | 0xA4907C   |
 | Lapis Lazuli  | Lapis Lazuli, Lapis Block (9x) | Corrosion Resistance +20                            | 20        | 0.5 | 0x345EC3   |
-| Sugar         | Sugar, Sugar Cane (1x)         | Density -20                                         | -20       | 0.5 | 0xF0F0F0   |
+| Sugar         | Sugar                          | Density -20                                         | -20       | 0.5 | 0xF0F0F0   |
 | Blaze Powder  | Blaze Powder                   | Density +20                                         | 20        | 0.5 | 0xFF8C00   |
 | Glowstone Dust| Glowstone Dust, Glowstone (4x) | Hardness +13, Corrosion Resistance +13              | 13 each   | 0.4 | 0xFFDD33   |
 | Redstone      | Redstone, Redstone Block (9x)  | Toughness +13, Ductility +13                        | 13 each   | 0.4 | 0xCC0000   |
