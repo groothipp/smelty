@@ -22,12 +22,22 @@ public class AlloyItem extends Item {
 
 	@Override
 	public Text getName(ItemStack stack) {
-		CustomModelDataComponent cmd = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
-		if (cmd != null && !cmd.floats().isEmpty()) {
-			AlloyComposition comp = AlloyComposition.fromPercentages(cmd.floats());
-			String name = ClientAlloyRegistry.getAlloyName(comp);
+		// Prefer the stored key (exact match) over recomputing from floats (lossy)
+		String key = AlloyComposition.getStoredKey(stack);
+		if (key != null) {
+			String name = ClientAlloyRegistry.getAlloyName(key);
 			if (name != null) {
 				return Text.literal(name + " " + suffix);
+			}
+		} else {
+			// Legacy items without stored key: fall back to recomputing
+			CustomModelDataComponent cmd = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+			if (cmd != null && !cmd.floats().isEmpty()) {
+				AlloyComposition comp = AlloyComposition.fromPercentages(cmd.floats());
+				String name = ClientAlloyRegistry.getAlloyName(comp);
+				if (name != null) {
+					return Text.literal(name + " " + suffix);
+				}
 			}
 		}
 		return super.getName(stack);

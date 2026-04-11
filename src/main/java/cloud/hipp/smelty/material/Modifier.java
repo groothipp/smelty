@@ -9,60 +9,61 @@ import java.util.Map;
 
 /**
  * Modifiers are non-metal items thrown into the smelter that boost alloy stats.
- * Each modifier follows an exponential decay curve: bonus = maxBonus * (1 - e^(-k * concentration))
- * where concentration is modifier items per ingot of alloy.
+ * Each modifier follows an exponential decay curve: bonus = maxBonus * (1 - e^(-k * n))
+ * where n is the number of that modifier item thrown into the smelter.
  */
 public enum Modifier {
 	COAL(
-			new Effect[]{new Effect(MaterialProperty.HARDNESS, 15, 0.5)},
+			new Effect[]{new Effect(MaterialProperty.HARDNESS, 20, 0.5)},
 			0x555555  // Gray tint
 	),
 	BONE_MEAL(
-			new Effect[]{new Effect(MaterialProperty.TOUGHNESS, 15, 0.5)},
+			new Effect[]{new Effect(MaterialProperty.TOUGHNESS, 20, 0.5)},
 			0xE8E4D4  // Bone-white tint
 	),
 	SLIME_BALL(
-			new Effect[]{new Effect(MaterialProperty.DUCTILITY, 15, 0.5)},
+			new Effect[]{new Effect(MaterialProperty.DUCTILITY, 20, 0.5)},
 			0x7EBF6E  // Green tint
 	),
 	CLAY_BALL(
-			new Effect[]{new Effect(MaterialProperty.MALLEABILITY, 15, 0.5)},
+			new Effect[]{new Effect(MaterialProperty.MALLEABILITY, 20, 0.5)},
 			0xA4907C  // Tan/brown tint
 	),
 	LAPIS_LAZULI(
-			new Effect[]{new Effect(MaterialProperty.CORROSION_RESISTANCE, 15, 0.5)},
+			new Effect[]{new Effect(MaterialProperty.CORROSION_RESISTANCE, 20, 0.5)},
 			0x345EC3  // Blue tint
 	),
 	SUGAR(
-			new Effect[]{new Effect(MaterialProperty.DENSITY, -15, 0.5)},
+			new Effect[]{new Effect(MaterialProperty.DENSITY, -20, 0.5)},
 			0xF0F0F0  // White tint
 	),
 	BLAZE_POWDER(
-			new Effect[]{new Effect(MaterialProperty.DENSITY, 15, 0.5)},
+			new Effect[]{new Effect(MaterialProperty.DENSITY, 20, 0.5)},
 			0xFF8C00  // Orange tint
 	),
 	GLOWSTONE_DUST(
 			new Effect[]{
-					new Effect(MaterialProperty.HARDNESS, 10, 0.4),
-					new Effect(MaterialProperty.CORROSION_RESISTANCE, 10, 0.4)
+					new Effect(MaterialProperty.HARDNESS, 13, 0.4),
+					new Effect(MaterialProperty.CORROSION_RESISTANCE, 13, 0.4)
 			},
 			0xFFDD33  // Yellow tint
 	),
 	REDSTONE(
 			new Effect[]{
-					new Effect(MaterialProperty.TOUGHNESS, 10, 0.4),
-					new Effect(MaterialProperty.DUCTILITY, 10, 0.4)
+					new Effect(MaterialProperty.TOUGHNESS, 13, 0.4),
+					new Effect(MaterialProperty.DUCTILITY, 13, 0.4)
 			},
 			0xCC0000  // Red tint
 	),
 	ENDER_PEARL(
 			new Effect[]{
-					new Effect(MaterialProperty.HARDNESS, 5, 0.3),
-					new Effect(MaterialProperty.TOUGHNESS, 5, 0.3),
-					new Effect(MaterialProperty.DUCTILITY, 5, 0.3),
-					new Effect(MaterialProperty.MALLEABILITY, 5, 0.3),
-					new Effect(MaterialProperty.DENSITY, 5, 0.3),
-					new Effect(MaterialProperty.CORROSION_RESISTANCE, 5, 0.3)
+					new Effect(MaterialProperty.HARDNESS, 9, 0.3),
+					new Effect(MaterialProperty.TOUGHNESS, 9, 0.3),
+					new Effect(MaterialProperty.DUCTILITY, 9, 0.3),
+					new Effect(MaterialProperty.MALLEABILITY, 9, 0.3),
+					// Density handled specially in AlloyComposition.getModifierBonus:
+					// pushes density away from 50 (increases if >50, decreases if <50)
+					new Effect(MaterialProperty.CORROSION_RESISTANCE, 9, 0.3)
 			},
 			0x0C5E4E  // Purple-green tint
 	),
@@ -83,14 +84,15 @@ public enum Modifier {
 	public int getTintColor() { return tintColor; }
 
 	/**
-	 * Compute the stat bonus for a given property at the specified concentration (items per ingot).
+	 * Compute the stat bonus for a given property based on modifier item count.
+	 * Individual effectiveness: maxBonus * (1 - exp(-k * n))
+	 * Stacking the same modifier gives exponentially diminishing returns.
 	 */
-	public double getBonus(MaterialProperty property, double concentration) {
+	public double getBonus(MaterialProperty property, int itemCount) {
 		for (Effect effect : effects) {
 			if (effect.property == property) {
-				double absCon = Math.abs(concentration);
-				double bonus = effect.maxBonus * (1 - Math.exp(-effect.k * absCon));
-				return concentration < 0 ? -bonus : bonus;
+				double bonus = effect.maxBonus * (1 - Math.exp(-effect.k * itemCount));
+				return bonus;
 			}
 		}
 		return 0;

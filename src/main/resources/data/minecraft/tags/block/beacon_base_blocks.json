@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "smelty:casted_diamond_block",
+    "smelty:casted_emerald_block"
+  ]
+}

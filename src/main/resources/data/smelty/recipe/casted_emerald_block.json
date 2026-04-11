@@ -1,14 +1,15 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
   "pattern": [
     "EEE",
     "EEE",
     "EEE"
   ],
   "key": {
-    "E": "minecraft:emerald"
+    "E": "smelty:casted_emerald"
   },
   "result": {
-    "id": "minecraft:emerald_block"
+    "id": "smelty:casted_emerald_block"
   }
 }

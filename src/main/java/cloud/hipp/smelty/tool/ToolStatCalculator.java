@@ -43,7 +43,10 @@ public final class ToolStatCalculator {
 	private static final double ATKSPD_CRHO = 80.0;
 
 	// --- Mining Speed ---
-	// S_M = L * (c_rho / rho + c_H * H)
+	// S_M = SCALE * L * (c_rho / rho + c_H * H)
+	// SCALE chosen so pure iron at Tier III (L=1.0, rho=50, H=60) yields 6.0 (vanilla iron speed).
+	// Raw formula gives 1.0 for iron; 6.0 / 1.0 = 6.0.
+	private static final double MINE_SPEED_SCALE = 6.0;
 	private static final double MINE_CRHO = 20.0;
 	private static final double MINE_CH = 0.01;
 
@@ -120,14 +123,15 @@ public final class ToolStatCalculator {
 	}
 
 	/**
-	 * Mining speed: L * (c_rho / rho + c_H * H)
+	 * Mining speed: SCALE * L * (c_rho / rho + c_H * H)
 	 * Light, hard materials mine fastest.
+	 * Scaled so that 1.0 (pure iron baseline) maps to vanilla iron mining speed (6.0).
 	 */
 	public static double computeMiningSpeed(AlloyComposition comp) {
 		double L = comp.getTierMultiplier();
 		double rho = Math.max(1, comp.getFinalProperty(MaterialProperty.DENSITY));
 		double H = comp.getFinalProperty(MaterialProperty.HARDNESS);
-		return L * (MINE_CRHO / rho + MINE_CH * H);
+		return MINE_SPEED_SCALE * L * (MINE_CRHO / rho + MINE_CH * H);
 	}
 
 	/**

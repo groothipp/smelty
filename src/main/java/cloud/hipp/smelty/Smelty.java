@@ -65,10 +65,14 @@ public class Smelty implements ModInitializer {
 					AlloyComposition comp = AnalysisBenchBlockEntity.getCompositionFromPlate(bench.getPlateItem());
 					if (comp.getMaterials().size() <= 1 && comp.getModifiers().isEmpty()) return;
 
+					// Use the stored key from the plate for exact matching
+					String normalizedKey = AlloyComposition.getStoredKey(bench.getPlateItem());
+					if (normalizedKey == null) normalizedKey = comp.getNormalizedKey();
+
 					AlloyRegistry registry = AlloyRegistry.get(serverWorld);
 					// Don't allow overwriting an existing name or reusing a taken name
-					if (registry.getAlloyName(comp) != null) return;
-					if (!registry.setAlloyName(comp.getNormalizedKey(), name)) return;
+					if (registry.getAlloyName(normalizedKey) != null) return;
+					if (!registry.setAlloyName(normalizedKey, name)) return;
 
 					// Sync updated registry to all players
 					SyncAlloyRegistryPayload syncPayload = new SyncAlloyRegistryPayload(registry.getCompositionToName());

@@ -86,7 +86,7 @@ public class CastingBasinBlockEntity extends BlockEntity implements Inventory {
 
 		AlloyComposition portion = source.drainAndReturn(accepted);
 		int actualVolume = portion.getTotalVolumeMl();
-		fluidComposition.mergeFrom(portion);
+		fluidComposition.mergeMaterialsAndSetModifiers(portion);
 		fluidLevelMl += actualVolume;
 		needsSync = true;
 		markDirty();
@@ -167,18 +167,20 @@ public class CastingBasinBlockEntity extends BlockEntity implements Inventory {
 			stack.set(DataComponentTypes.BLOCK_ENTITY_DATA,
 					TypedEntityData.create(SmeltyBlockEntities.SOLID_ALLOY,
 							tempBe.createNbt(serverWorld.getRegistryManager())));
-			AlloyComposition normalizedComp = tempBe.getComposition().toNormalized(AlloyComposition.ITEM_RATIO_BASE);
+			AlloyComposition matNormalized = tempBe.getComposition().toNormalized(AlloyComposition.ITEM_RATIO_BASE);
+			String normalizedKey = fluidComposition.getNormalizedKey();
 			java.util.List<Float> percentages = new java.util.ArrayList<>();
 			for (cloud.hipp.smelty.material.SmeltyMaterial mat : cloud.hipp.smelty.material.SmeltyMaterial.values()) {
-				percentages.add((float) normalizedComp.getMaterials().getOrDefault(mat, 0));
+				percentages.add((float) matNormalized.getMaterials().getOrDefault(mat, 0));
 			}
+			// Store raw modifier volumes (absolute amounts, not scaled)
 			for (cloud.hipp.smelty.material.Modifier mod : cloud.hipp.smelty.material.Modifier.values()) {
-				percentages.add((float) normalizedComp.getModifiers().getOrDefault(mod, 0));
+				percentages.add((float) fluidComposition.getModifiers().getOrDefault(mod, 0));
 			}
 			stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 					new CustomModelDataComponent(
-							percentages, java.util.List.of(), java.util.List.of(),
-							java.util.List.of(normalizedComp.getBlendedColor())));
+							percentages, java.util.List.of(), java.util.List.of(normalizedKey),
+							java.util.List.of(fluidComposition.getBlendedColor())));
 			AlloyRegistry registry = AlloyRegistry.get(serverWorld);
 			String alloyName = registry.getAlloyName(fluidComposition);
 			if (alloyName != null) {

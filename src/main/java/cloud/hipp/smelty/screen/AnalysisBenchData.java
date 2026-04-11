@@ -15,7 +15,8 @@ public record AnalysisBenchData(
 		Map<Modifier, Integer> modifiers,
 		String materialName,
 		boolean isRenameable,
-		BlockPos benchPos
+		BlockPos benchPos,
+		String normalizedKey
 ) {
 	public static final PacketCodec<RegistryByteBuf, AnalysisBenchData> PACKET_CODEC = new PacketCodec<>() {
 		@Override
@@ -33,7 +34,8 @@ public record AnalysisBenchData(
 			String name = PacketCodecs.STRING.decode(buf);
 			boolean renameable = buf.readBoolean();
 			BlockPos pos = BlockPos.PACKET_CODEC.decode(buf);
-			return new AnalysisBenchData(comp, mods, name, renameable, pos);
+			String key = PacketCodecs.STRING.decode(buf);
+			return new AnalysisBenchData(comp, mods, name, renameable, pos, key);
 		}
 
 		@Override
@@ -47,6 +49,7 @@ public record AnalysisBenchData(
 			PacketCodecs.STRING.encode(buf, data.materialName);
 			buf.writeBoolean(data.isRenameable);
 			BlockPos.PACKET_CODEC.encode(buf, data.benchPos);
+			PacketCodecs.STRING.encode(buf, data.normalizedKey);
 		}
 	};
 }

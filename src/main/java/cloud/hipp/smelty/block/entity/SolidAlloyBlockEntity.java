@@ -40,8 +40,14 @@ public class SolidAlloyBlockEntity extends BlockEntity {
 
 	public void setComposition(AlloyComposition source) {
 		composition.clear();
-		AlloyComposition normalized = source.toNormalized(AlloyComposition.RATIO_BASE);
-		composition.mergeFrom(normalized);
+		// Normalize materials to RATIO_BASE; keep modifiers as absolute amounts
+		AlloyComposition matNorm = source.toNormalized(AlloyComposition.RATIO_BASE);
+		for (var entry : matNorm.getMaterials().entrySet()) {
+			composition.addMaterial(entry.getKey(), entry.getValue());
+		}
+		for (var entry : source.getModifiers().entrySet()) {
+			composition.addModifier(entry.getKey(), entry.getValue());
+		}
 	}
 
 	public int getVolumeMl() {
@@ -68,17 +74,21 @@ public class SolidAlloyBlockEntity extends BlockEntity {
 		stack.set(DataComponentTypes.BLOCK_ENTITY_DATA,
 				TypedEntityData.create(SmeltyBlockEntities.SOLID_ALLOY,
 						tempBe.createNbt(serverWorld.getRegistryManager())));
-		AlloyComposition normalizedComp = composition.toNormalized(AlloyComposition.ITEM_RATIO_BASE);
+		AlloyComposition matNormalized = composition.toNormalized(AlloyComposition.ITEM_RATIO_BASE);
+		String normalizedKey = composition.getNormalizedKey();
 		List<Float> percentages = new ArrayList<>();
 		for (SmeltyMaterial mat : SmeltyMaterial.values()) {
-			percentages.add((float) normalizedComp.getMaterials().getOrDefault(mat, 0));
+			percentages.add((float) matNormalized.getMaterials().getOrDefault(mat, 0));
+		}
+		for (cloud.hipp.smelty.material.Modifier mod : cloud.hipp.smelty.material.Modifier.values()) {
+			percentages.add((float) composition.getModifiers().getOrDefault(mod, 0));
 		}
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
-						percentages, List.of(), List.of(),
-						List.of(normalizedComp.getBlendedColor())));
+						percentages, List.of(), List.of(normalizedKey),
+						List.of(composition.getBlendedColor())));
 		AlloyRegistry registry = AlloyRegistry.get(serverWorld);
-		String alloyName = registry.getAlloyName(composition);
+		String alloyName = registry.getAlloyName(normalizedKey);
 		if (alloyName != null) {
 			stack.set(DataComponentTypes.CUSTOM_NAME,
 					Text.literal(alloyName + " Block").styled(s -> s.withItalic(false)));
@@ -108,11 +118,17 @@ public class SolidAlloyBlockEntity extends BlockEntity {
 			volumeMl = composition.getTotalVolumeMl();
 		}
 
-		// Normalize composition to ratios (handles old-format data with absolute volumes)
+		// Normalize material ratios (handles old-format data with absolute volumes)
+		// Modifiers are kept as absolute amounts, not scaled
 		if (!composition.isEmpty() && composition.getTotalVolumeMl() != AlloyComposition.RATIO_BASE) {
-			AlloyComposition normalized = composition.toNormalized(AlloyComposition.RATIO_BASE);
+			AlloyComposition matNorm = composition.toNormalized(AlloyComposition.RATIO_BASE);
+			java.util.EnumMap<cloud.hipp.smelty.material.Modifier, Integer> savedMods =
+					new java.util.EnumMap<>(composition.getModifiers());
 			composition.clear();
-			composition.mergeFrom(normalized);
+			for (var entry : matNorm.getMaterials().entrySet()) {
+				composition.addMaterial(entry.getKey(), entry.getValue());
+			}
+			composition.getModifiers().putAll(savedMods);
 		}
 
 		// Trigger client-side chunk re-render so block color updates immediately

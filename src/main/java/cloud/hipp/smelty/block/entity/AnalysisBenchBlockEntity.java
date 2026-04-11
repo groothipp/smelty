@@ -125,15 +125,16 @@ public class AnalysisBenchBlockEntity extends BlockEntity implements ExtendedScr
 		return comp;
 	}
 
-	private String getMaterialName(AlloyComposition composition) {
+	private String getMaterialName(AlloyComposition composition, String storedKey) {
 		Map<SmeltyMaterial, Integer> mats = composition.getMaterials();
 		if (mats.size() == 1 && composition.getModifiers().isEmpty()) {
 			return mats.keySet().iterator().next().getDisplayName();
 		}
-		// Check AlloyRegistry for a custom name
+		// Check AlloyRegistry for a custom name using the stored key (exact match)
 		if (world instanceof ServerWorld serverWorld) {
 			AlloyRegistry registry = AlloyRegistry.get(serverWorld);
-			String customName = registry.getAlloyName(composition);
+			String key = storedKey != null ? storedKey : composition.getNormalizedKey();
+			String customName = registry.getAlloyName(key);
 			if (customName != null) return customName;
 		}
 		return "Alloy";
@@ -144,13 +145,17 @@ public class AnalysisBenchBlockEntity extends BlockEntity implements ExtendedScr
 		AlloyComposition normalized = comp.toNormalized(100);
 		EnumMap<SmeltyMaterial, Integer> map = new EnumMap<>(SmeltyMaterial.class);
 		map.putAll(normalized.getMaterials());
+		// Pass raw modifier volumes (needed for property computation in the screen)
 		EnumMap<cloud.hipp.smelty.material.Modifier, Integer> modMap = new EnumMap<>(cloud.hipp.smelty.material.Modifier.class);
-		modMap.putAll(normalized.getModifiers());
+		modMap.putAll(comp.getModifiers());
 
-		String name = getMaterialName(comp);
+		String storedKey = AlloyComposition.getStoredKey(plateItem);
+		String name = getMaterialName(comp, storedKey);
 		boolean renameable = (comp.getMaterials().size() > 1 || !comp.getModifiers().isEmpty()) && name.equals("Alloy");
+		// Pass the stored key (or recomputed fallback) so naming uses the exact key
+		String key = storedKey != null ? storedKey : comp.getNormalizedKey();
 
-		return new AnalysisBenchData(map, modMap, name, renameable, pos);
+		return new AnalysisBenchData(map, modMap, name, renameable, pos, key);
 	}
 
 	@Override

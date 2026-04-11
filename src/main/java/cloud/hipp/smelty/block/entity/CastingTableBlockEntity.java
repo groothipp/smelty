@@ -137,7 +137,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 
 		AlloyComposition portion = source.drainAndReturn(accepted);
 		int actualVolume = portion.getTotalVolumeMl();
-		fluidComposition.mergeFrom(portion);
+		fluidComposition.mergeMaterialsAndSetModifiers(portion);
 		fluidLevelMl += actualVolume;
 		needsSync = true;
 		markDirty();
@@ -399,21 +399,23 @@ public class CastingTableBlockEntity extends BlockEntity {
 	}
 
 	private ItemStack createAlloyStack(Item item) {
-		// Normalize to coarse base (5% resolution) to collapse ±1-2 mL drain rounding,
-		// ensuring ingots from the same alloy batch always have identical component data.
-		AlloyComposition normalized = fluidComposition.toNormalized(AlloyComposition.ITEM_RATIO_BASE);
+		// Materials: normalize to coarse base (5% resolution) to collapse drain rounding.
+		// Modifiers: store raw volumes (absolute amounts, not scaled with materials).
+		AlloyComposition matNormalized = fluidComposition.toNormalized(AlloyComposition.ITEM_RATIO_BASE);
+		String normalizedKey = fluidComposition.getNormalizedKey();
 		ItemStack stack = new ItemStack(item);
 		java.util.List<Float> percentages = new java.util.ArrayList<>();
 		for (cloud.hipp.smelty.material.SmeltyMaterial mat : cloud.hipp.smelty.material.SmeltyMaterial.values()) {
-			percentages.add((float) normalized.getMaterials().getOrDefault(mat, 0));
+			percentages.add((float) matNormalized.getMaterials().getOrDefault(mat, 0));
 		}
+		// Store raw modifier volumes (not normalized — modifiers are absolute counts)
 		for (cloud.hipp.smelty.material.Modifier mod : cloud.hipp.smelty.material.Modifier.values()) {
-			percentages.add((float) normalized.getModifiers().getOrDefault(mod, 0));
+			percentages.add((float) fluidComposition.getModifiers().getOrDefault(mod, 0));
 		}
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
-						percentages, java.util.List.of(), java.util.List.of(),
-						java.util.List.of(normalized.getBlendedColor())));
+						percentages, java.util.List.of(), java.util.List.of(normalizedKey),
+						java.util.List.of(fluidComposition.getBlendedColor())));
 		return stack;
 	}
 

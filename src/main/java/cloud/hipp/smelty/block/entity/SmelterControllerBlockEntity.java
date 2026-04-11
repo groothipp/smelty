@@ -403,10 +403,15 @@ public class SmelterControllerBlockEntity extends BlockEntity implements Extende
 
 		for (int i = 0; i < itemCount; i++) {
 			if (mods.isEmpty()) break;
-			// Pick a random modifier to remove entirely
+			// Pick a random modifier and remove 1 item worth
 			var modList = new ArrayList<>(mods.keySet());
-			cloud.hipp.smelty.material.Modifier toRemove = modList.get(serverWorld.getRandom().nextInt(modList.size()));
-			mods.remove(toRemove);
+			cloud.hipp.smelty.material.Modifier target = modList.get(serverWorld.getRandom().nextInt(modList.size()));
+			int remaining = mods.get(target) - AlloyComposition.MODIFIER_VOLUME;
+			if (remaining <= 0) {
+				mods.remove(target);
+			} else {
+				mods.put(target, remaining);
+			}
 			consumed++;
 		}
 

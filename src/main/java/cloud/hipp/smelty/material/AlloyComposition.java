@@ -59,17 +59,18 @@ public class AlloyComposition {
 		if (totalMl == 0 || drainMl <= 0) return;
 		if (drainMl >= totalMl) {
 			materials.clear();
-			// Modifiers stay — they don't drain with materials
+			modifiers.clear();
 			return;
 		}
 		double ratio = (double) drainMl / totalMl;
-		// Drain materials only — modifiers stay in the source
 		drainMap(materials, ratio, drainMl);
+		// Modifiers stay — they don't drain with materials
 	}
 
 	/**
-	 * Drains materials proportionally and returns a new AlloyComposition containing the drained portion.
-	 * Modifiers are copied (snapshotted) to the drained portion but NOT removed from the source.
+	 * Drains materials proportionally and returns the drained portion.
+	 * Modifiers are copied (stamped) onto the drained portion but NOT removed from the source.
+	 * When fully drained, modifiers move to the drained portion and the source is cleared.
 	 */
 	public AlloyComposition drainAndReturn(int drainMl) {
 		AlloyComposition drained = new AlloyComposition();
@@ -77,29 +78,16 @@ public class AlloyComposition {
 		if (totalMl == 0 || drainMl <= 0) return drained;
 		if (drainMl >= totalMl) {
 			drained.materials.putAll(materials);
+			drained.modifiers.putAll(modifiers);
 			materials.clear();
-			// Copy modifiers to drained portion but keep them in source
-			copyModifiersProportional(drained, 1.0);
+			modifiers.clear();
 			return drained;
 		}
 		double ratio = (double) drainMl / totalMl;
-		// Drain materials
 		drainMapAndReturn(materials, drained.materials, ratio, drainMl);
-		// Copy modifiers proportionally to drained portion (source keeps all modifiers)
-		copyModifiersProportional(drained, ratio);
+		// Copy all modifiers to drained portion (source keeps them)
+		drained.modifiers.putAll(modifiers);
 		return drained;
-	}
-
-	/**
-	 * Copy modifiers proportionally to the target without removing from source.
-	 */
-	private void copyModifiersProportional(AlloyComposition target, double ratio) {
-		for (var entry : modifiers.entrySet()) {
-			int amount = (int) Math.round(ratio * entry.getValue());
-			if (amount > 0) {
-				target.modifiers.put(entry.getKey(), amount);
-			}
-		}
 	}
 
 	private <K extends Enum<K>> void drainMap(EnumMap<K, Integer> map, double ratio, int targetDrain) {
@@ -302,45 +290,60 @@ public class AlloyComposition {
 	// --- Modifier bonuses ---
 
 	/**
-	 * Get modifier concentration (items per ingot) for a given modifier.
+	 * Get the item count of a specific modifier (amount / MODIFIER_VOLUME).
 	 */
-	public double getModifierConcentration(Modifier modifier) {
-		int totalMl = getTotalVolumeMl();
-		if (totalMl == 0) return 0;
-		int units = modifiers.getOrDefault(modifier, 0);
-		// concentration = modifier items / total ingots = (units/MODIFIER_VOLUME) / (totalMl/INGOT_VOLUME)
-		// Since MODIFIER_VOLUME == INGOT_VOLUME, this simplifies to units/totalMl
-		return (double) units / totalMl;
+	public int getModifierItemCount(Modifier modifier) {
+		return modifiers.getOrDefault(modifier, 0) / MODIFIER_VOLUME;
 	}
 
-	// Overall modifier effectiveness decay rate
-	private static final double OVERALL_MODIFIER_K = 0.15;
+	/**
+	 * Get the total number of modifier items across all modifiers.
+	 */
+	public int getTotalModifierItemCount() {
+		int total = 0;
+		for (int units : modifiers.values()) {
+			total += units / MODIFIER_VOLUME;
+		}
+		return total;
+	}
+
+	// Overall modifier effectiveness decay rate (based on total modifier item count).
+	// Shifted by 1 so the first modifier is always 100% effective.
+	private static final double OVERALL_MODIFIER_K = 0.12;
 
 	/**
-	 * Compute the overall modifier effectiveness based on total modifier concentration.
-	 * Decays exponentially: more total modifiers = each one is less effective.
+	 * Compute the overall modifier effectiveness based on total modifier item count.
+	 * effectiveness = exp(-K * (totalCount - 1))
+	 * First modifier is always fully effective; decay kicks in from the 2nd item onward.
 	 */
 	public double getOverallModifierEffectiveness() {
-		int totalMl = getTotalVolumeMl();
-		if (totalMl == 0) return 1.0;
-		int totalModifierUnits = 0;
-		for (int units : modifiers.values()) {
-			totalModifierUnits += units;
-		}
-		double totalConcentration = (double) totalModifierUnits / totalMl;
-		return Math.exp(-OVERALL_MODIFIER_K * totalConcentration);
+		int totalCount = getTotalModifierItemCount();
+		if (totalCount <= 1) return 1.0;
+		return Math.exp(-OVERALL_MODIFIER_K * (totalCount - 1));
 	}
 
 	/**
 	 * Compute total modifier bonus for a given property across all modifiers,
 	 * scaled by overall modifier effectiveness.
+	 * Individual bonus: maxBonus * (1 - exp(-k * n)) where n = item count
+	 * Total effectiveness: exp(-K * totalModifierCount)
+	 * Overall = sum(individual) * totalEffectiveness
 	 */
 	public double getModifierBonus(MaterialProperty property) {
 		double totalBonus = 0;
 		for (Modifier mod : Modifier.values()) {
-			double concentration = getModifierConcentration(mod);
-			if (concentration > 0) {
-				totalBonus += mod.getBonus(property, concentration);
+			int count = getModifierItemCount(mod);
+			if (count > 0) {
+				totalBonus += mod.getBonus(property, count);
+			}
+		}
+		// Ender Pearl density: push away from 50 (increase if >50, decrease if <50)
+		if (property == MaterialProperty.DENSITY) {
+			int pearlCount = getModifierItemCount(Modifier.ENDER_PEARL);
+			if (pearlCount > 0) {
+				double magnitude = 9.0 * (1 - Math.exp(-0.3 * pearlCount));
+				double blendedDensity = getBlendedProperty(MaterialProperty.DENSITY);
+				totalBonus += (blendedDensity >= 50) ? magnitude : -magnitude;
 			}
 		}
 		return totalBonus * getOverallModifierEffectiveness();
@@ -467,8 +470,8 @@ public class AlloyComposition {
 		double totalModWeight = 0;
 		double mr = 0, mg = 0, mb = 0;
 		for (var entry : modifiers.entrySet()) {
-			double concentration = getModifierConcentration(entry.getKey());
-			double weight = Math.min(0.1, concentration * 0.05);
+			int count = entry.getValue() / MODIFIER_VOLUME;
+			double weight = Math.min(0.1, count * 0.02);
 			totalModWeight += weight;
 			int tint = entry.getKey().getTintColor();
 			mr += weight * ((tint >> 16) & 0xFF);
@@ -497,27 +500,33 @@ public class AlloyComposition {
 	}
 
 	/**
-	 * Returns a canonical string key for this composition, normalized to sum to 100.
-	 * Format: "COPPER:30,IRON:70" (sorted by enum order, zeros omitted).
+	 * Returns a canonical string key for this composition.
+	 * Materials are normalized to RATIO_BASE (sum to 100).
+	 * Modifiers use absolute item counts (volume / MODIFIER_VOLUME).
+	 * Format: "COPPER:30,IRON:70|COAL:5" (sorted by enum order, zeros omitted).
 	 */
 	public String getNormalizedKey() {
-		AlloyComposition normalized = toNormalized(100);
+		int totalMl = getTotalVolumeMl();
+		if (totalMl == 0) return "";
+
+		double matScale = (double) RATIO_BASE / totalMl;
 		StringBuilder sb = new StringBuilder();
 		for (SmeltyMaterial mat : SmeltyMaterial.values()) {
-			int amount = normalized.getMaterials().getOrDefault(mat, 0);
-			if (amount > 0) {
+			int vol = materials.getOrDefault(mat, 0);
+			int normalized = (int) Math.round(matScale * vol);
+			if (normalized > 0) {
 				if (!sb.isEmpty()) sb.append(',');
-				sb.append(mat.name()).append(':').append(amount);
+				sb.append(mat.name()).append(':').append(normalized);
 			}
 		}
-		// Include modifiers in the key so different modifier combos produce distinct keys
+		// Modifiers as absolute item counts (independent of alloy volume)
 		boolean hasModifier = false;
 		for (Modifier mod : Modifier.values()) {
-			int amount = normalized.getModifiers().getOrDefault(mod, 0);
-			if (amount > 0) {
+			int count = getModifierItemCount(mod);
+			if (count > 0) {
 				sb.append(hasModifier ? ',' : '|');
 				hasModifier = true;
-				sb.append(mod.name()).append(':').append(amount);
+				sb.append(mod.name()).append(':').append(count);
 			}
 		}
 		return sb.toString();
@@ -545,7 +554,7 @@ public class AlloyComposition {
 
 	/**
 	 * Create a composition from float percentages.
-	 * Layout: [7 material percentages, 11 modifier amounts (scaled)]
+	 * Layout: [7 material percentages, 11 modifier amounts (raw volumes)]
 	 * Handles legacy data with fewer entries gracefully.
 	 */
 	public static AlloyComposition fromPercentages(java.util.List<Float> percentages) {
@@ -557,7 +566,7 @@ public class AlloyComposition {
 				comp.addMaterial(mats[i], amount);
 			}
 		}
-		// Read modifiers if present
+		// Read modifiers if present (stored as raw volumes)
 		Modifier[] mods = Modifier.values();
 		int modStart = mats.length;
 		for (int i = 0; i < mods.length && (modStart + i) < percentages.size(); i++) {
@@ -575,6 +584,21 @@ public class AlloyComposition {
 		}
 		for (var entry : other.modifiers.entrySet()) {
 			addModifier(entry.getKey(), entry.getValue());
+		}
+	}
+
+	/**
+	 * Merge materials (additive) but set modifiers (overwrite).
+	 * Used when receiving fluid from upstream — modifiers are stamped from the
+	 * smelter's state, not accumulated across multiple drain ticks.
+	 */
+	public void mergeMaterialsAndSetModifiers(AlloyComposition other) {
+		for (var entry : other.materials.entrySet()) {
+			addMaterial(entry.getKey(), entry.getValue());
+		}
+		if (!other.modifiers.isEmpty()) {
+			modifiers.clear();
+			modifiers.putAll(other.modifiers);
 		}
 	}
 
@@ -618,5 +642,18 @@ public class AlloyComposition {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Reads the stored normalized key from an item's CustomModelDataComponent strings.
+	 * Returns null if no key is stored (legacy items).
+	 */
+	public static String getStoredKey(net.minecraft.item.ItemStack stack) {
+		net.minecraft.component.type.CustomModelDataComponent cmd =
+				stack.get(net.minecraft.component.DataComponentTypes.CUSTOM_MODEL_DATA);
+		if (cmd != null && !cmd.strings().isEmpty()) {
+			return cmd.strings().getFirst();
+		}
+		return null;
 	}
 }

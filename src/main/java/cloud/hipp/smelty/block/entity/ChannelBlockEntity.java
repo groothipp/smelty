@@ -86,7 +86,7 @@ public class ChannelBlockEntity extends BlockEntity {
 
 		AlloyComposition portion = source.drainAndReturn(accepted);
 		int actualVolume = portion.getTotalVolumeMl();
-		fluidComposition.mergeFrom(portion);
+		fluidComposition.mergeMaterialsAndSetModifiers(portion);
 		fluidLevel += actualVolume;
 		needsSync = true;
 		markDirty();

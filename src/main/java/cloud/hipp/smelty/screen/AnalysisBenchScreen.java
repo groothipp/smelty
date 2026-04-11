@@ -193,7 +193,10 @@ public class AnalysisBenchScreen extends HandledScreen<AnalysisBenchScreenHandle
 			modY += 12;
 
 			for (Map.Entry<Modifier, Integer> entry : data.modifiers().entrySet()) {
-				context.drawTextWithShadow(textRenderer, Text.literal(getModifierName(entry.getKey())),
+				int itemCount = entry.getValue() / AlloyComposition.MODIFIER_VOLUME;
+				if (itemCount <= 0) continue;
+				String modLine = getModifierName(entry.getKey()) + " x" + itemCount;
+				context.drawTextWithShadow(textRenderer, Text.literal(modLine),
 						rightCol + 4, modY, 0xFF000000 | entry.getKey().getTintColor());
 				modY += 11;
 			}

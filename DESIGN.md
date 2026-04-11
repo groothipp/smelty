@@ -52,45 +52,47 @@ P_blended = sum(ratio_i * P_i)  where ratio_i = volume_i / total_volume
 
 ### Modifiers
 
-Modifiers are non-metal items thrown into the smelter that boost specific properties. Each follows an **exponential decay curve**:
+Modifiers are non-metal items thrown into the smelter that boost specific properties. Each follows an **exponential decay curve** based on item count:
 
 ```
-bonus = maxBonus * (1 - e^(-k * concentration))
+bonus = maxBonus * (1 - e^(-k * n))
 ```
 
-Where `concentration = modifier_units / total_alloy_volume` (effectively items per ingot, since modifier volume = ingot volume = 180 mL).
+Where `n` is the number of that modifier item thrown into the smelter. Stacking the same modifier gives exponentially diminishing returns.
 
 | Modifier      | Items                          | Effect(s)                                           | Max Bonus | k   | Tint Color |
 |---------------|--------------------------------|-----------------------------------------------------|-----------|-----|------------|
-| Coal          | Coal, Charcoal, Coal Block (9x)| Hardness +15                                        | 15        | 0.5 | 0x555555   |
-| Bone Meal     | Bone Meal, Bone Block (9x)     | Toughness +15                                       | 15        | 0.5 | 0xE8E4D4   |
-| Slime Ball    | Slime Ball, Slime Block (9x)   | Ductility +15                                       | 15        | 0.5 | 0x7EBF6E   |
-| Clay Ball     | Clay Ball, Clay Block (4x)     | Malleability +15                                    | 15        | 0.5 | 0xA4907C   |
-| Lapis Lazuli  | Lapis Lazuli, Lapis Block (9x) | Corrosion Resistance +15                            | 15        | 0.5 | 0x345EC3   |
-| Sugar         | Sugar, Sugar Cane (1x)         | Density -15                                         | -15       | 0.5 | 0xF0F0F0   |
-| Blaze Powder  | Blaze Powder                   | Density +15                                         | 15        | 0.5 | 0xFF8C00   |
-| Glowstone Dust| Glowstone Dust, Glowstone (4x) | Hardness +10, Corrosion Resistance +10              | 10 each   | 0.4 | 0xFFDD33   |
-| Redstone      | Redstone, Redstone Block (9x)  | Toughness +10, Ductility +10                        | 10 each   | 0.4 | 0xCC0000   |
-| Ender Pearl   | Ender Pearl                    | All 6 properties +5                                 | 5 each    | 0.3 | 0x0C5E4E   |
+| Coal          | Coal, Charcoal, Coal Block (9x)| Hardness +20                                        | 20        | 0.5 | 0x555555   |
+| Bone Meal     | Bone Meal, Bone Block (9x)     | Toughness +20                                       | 20        | 0.5 | 0xE8E4D4   |
+| Slime Ball    | Slime Ball, Slime Block (9x)   | Ductility +20                                       | 20        | 0.5 | 0x7EBF6E   |
+| Clay Ball     | Clay Ball, Clay Block (4x)     | Malleability +20                                    | 20        | 0.5 | 0xA4907C   |
+| Lapis Lazuli  | Lapis Lazuli, Lapis Block (9x) | Corrosion Resistance +20                            | 20        | 0.5 | 0x345EC3   |
+| Sugar         | Sugar, Sugar Cane (1x)         | Density -20                                         | -20       | 0.5 | 0xF0F0F0   |
+| Blaze Powder  | Blaze Powder                   | Density +20                                         | 20        | 0.5 | 0xFF8C00   |
+| Glowstone Dust| Glowstone Dust, Glowstone (4x) | Hardness +13, Corrosion Resistance +13              | 13 each   | 0.4 | 0xFFDD33   |
+| Redstone      | Redstone, Redstone Block (9x)  | Toughness +13, Ductility +13                        | 13 each   | 0.4 | 0xCC0000   |
+| Ender Pearl   | Ender Pearl                    | All properties +9; density pushes away from 50       | 9 each    | 0.3 | 0x0C5E4E   |
 | Meat          | All raw meats/fish             | No stat effect (cosmetic only)                      | 0         | -   | 0xBB5544   |
 
 Block items count as multiple modifier units (multiplier shown in parentheses). Single-property modifiers have k=0.5, dual-property modifiers k=0.4, all-property modifier (Ender Pearl) k=0.3. Higher k means the bonus saturates faster.
 
-**Modifiers stay in the smelter.** When alloy is poured out, modifiers are NOT drained from the smelter — they persist across multiple pours. Cast items receive a proportional snapshot of the modifier state at cast time, but the smelter retains all its modifiers. Re-smelting alloy items does NOT add their modifiers back to the smelter; only explicitly thrown modifier items count.
+**Modifiers stay in the smelter.** When alloy is poured out, modifiers are NOT drained — they persist across multiple pours. All cast items receive the smelter's full modifier set. Modifiers are only removed when Nether Wart is thrown in, or when the smelter reaches 0 volume. Re-smelting alloy items does NOT add their modifiers back to the smelter; only explicitly thrown modifier items count.
 
 ### Netherwart (Modifier Removal)
 
-Throwing **Nether Wart** into a smelter with modifiers removes one random modifier type entirely per wart consumed. A stack of netherwart processes multiple removals (1 wart = 1 modifier type removed). If all modifiers are already removed, remaining warts are not consumed.
+Throwing **Nether Wart** into a smelter with modifiers removes 1 item from a random modifier per wart consumed. A stack of netherwart processes multiple removals. If a modifier's count reaches 0, it is removed entirely. If all modifiers are already removed, remaining warts are not consumed.
 
 ### Overall Modifier Effectiveness
 
-All modifier bonuses are scaled by an overall effectiveness factor that decays with total modifier concentration:
+All modifier bonuses are scaled by an overall effectiveness factor that decays with the total number of modifier items. The first modifier is always fully effective; decay kicks in from the 2nd item onward:
 
 ```
-effectiveness = e^(-0.15 * totalModifierConcentration)
+effectiveness = e^(-0.12 * (totalModifierCount - 1))
 ```
 
-Where `totalModifierConcentration` is the sum of all modifier units divided by total alloy volume. This prevents stacking all modifiers for maximum benefit — the more total modifiers in the alloy, the less effective each one becomes.
+Where `totalModifierCount` is the sum of all modifier item counts in the alloy. Sweet spot is 3-4 items of one type for ~20% stat boost; diminishing returns set in beyond 5 total items.
+
+The final modifier bonus for a property is: `sum(individual bonuses) * overall effectiveness`.
 
 ### Diversity Bonus
 
@@ -185,10 +187,10 @@ No tier multiplier. Density alone governs swing speed. Lighter alloys swing fast
 ### Mining Speed
 
 ```
-S_M = L * (20 / rho + 0.01 * H)
+S_M = 6 * L * (20 / rho + 0.01 * H)
 ```
 
-Light, hard materials mine fastest.
+Light, hard materials mine fastest. Scaled so pure iron at Tier III (L=1.0) yields 6.0 (vanilla iron mining speed).
 
 ### Mining Tier
 

@@ -40,6 +40,8 @@ public class MetallurgyGuideItem extends Item {
 				page(materialsPage()),
 				page(modifiersPage1()),
 				page(modifiersPage2()),
+				page(modifiersPage3()),
+				page(modifiersPage4()),
 				page(diversityPage()),
 				page(moldsPage1()),
 				page(moldsPage2()),
@@ -67,7 +69,16 @@ public class MetallurgyGuideItem extends Item {
 	private static Text titlePage() {
 		return Text.empty()
 				.append(Text.literal("Metallurgy Guide\n\n").formatted(Formatting.BOLD, Formatting.DARK_PURPLE))
-				.append(Text.literal("A guide to smelting, alloying, and forging."));
+				.append(Text.literal("Contents\n").formatted(Formatting.BOLD))
+				.append(Text.literal("- Properties\n").formatted(Formatting.DARK_GRAY))
+				.append(Text.literal("- Materials\n").formatted(Formatting.DARK_GRAY))
+				.append(Text.literal("- Modifiers\n").formatted(Formatting.DARK_GRAY))
+				.append(Text.literal("- Diversity Bonus\n").formatted(Formatting.DARK_GRAY))
+				.append(Text.literal("- Molds\n").formatted(Formatting.DARK_GRAY))
+				.append(Text.literal("- Analysis Bench\n").formatted(Formatting.DARK_GRAY))
+				.append(Text.literal("- Tool Tiers\n").formatted(Formatting.DARK_GRAY))
+				.append(Text.literal("- Tool Stats\n").formatted(Formatting.DARK_GRAY))
+				.append(Text.literal("- Armor Stats\n").formatted(Formatting.DARK_GRAY));
 	}
 
 	private static Text propertiesPage() {
@@ -88,7 +99,7 @@ public class MetallurgyGuideItem extends Item {
 				.append(Text.literal("Materials\n\n").formatted(Formatting.BOLD))
 				.append(Text.literal("Copper\n").formatted(Formatting.GOLD))
 				.append(Text.literal("Iron\n").formatted(Formatting.GRAY))
-				.append(Text.literal("Gold\n").formatted(Formatting.YELLOW))
+				.append(Text.literal("Gold\n").styled(s -> s.withColor(0x8B6914)))
 				.append(Text.literal("Diamond\n").formatted(Formatting.AQUA))
 				.append(Text.literal("Netherite\n").formatted(Formatting.DARK_GRAY))
 				.append(Text.literal("Obsidian\n").formatted(Formatting.DARK_PURPLE))
@@ -98,23 +109,47 @@ public class MetallurgyGuideItem extends Item {
 	private static Text modifiersPage1() {
 		return Text.empty()
 				.append(Text.literal("Modifiers\n\n").formatted(Formatting.BOLD, Formatting.DARK_GREEN))
-				.append(Text.literal("Throw into molten alloy.\n\n"))
 				.append(Text.literal("Coal\n").formatted(Formatting.DARK_GRAY))
+				.append(Text.literal("  Hardness\n\n").formatted(Formatting.GRAY))
 				.append(Text.literal("Bone Meal\n").formatted(Formatting.GOLD))
+				.append(Text.literal("  Toughness\n\n").formatted(Formatting.GRAY))
 				.append(Text.literal("Slime Ball\n").formatted(Formatting.GREEN))
-				.append(Text.literal("Clay Ball\n").formatted(Formatting.RED))
-				.append(Text.literal("Lapis Lazuli\n").formatted(Formatting.BLUE))
-				.append(Text.literal("Sugar\n").formatted(Formatting.YELLOW));
+				.append(Text.literal("  Ductility\n").formatted(Formatting.GRAY));
 	}
 
 	private static Text modifiersPage2() {
 		return Text.empty()
 				.append(Text.literal("Modifiers (cont.)\n\n").formatted(Formatting.BOLD, Formatting.DARK_GREEN))
+				.append(Text.literal("Clay Ball\n").formatted(Formatting.RED))
+				.append(Text.literal("  Malleability\n\n").formatted(Formatting.GRAY))
+				.append(Text.literal("Lapis Lazuli\n").formatted(Formatting.BLUE))
+				.append(Text.literal("  Corr. Resist.\n\n").formatted(Formatting.GRAY))
+				.append(Text.literal("Sugar\n").styled(s -> s.withColor(0x8B6914)))
+				.append(Text.literal("  -Density\n").formatted(Formatting.GRAY));
+	}
+
+	private static Text modifiersPage3() {
+		return Text.empty()
+				.append(Text.literal("Modifiers (cont.)\n\n").formatted(Formatting.BOLD, Formatting.DARK_GREEN))
 				.append(Text.literal("Blaze Powder\n").formatted(Formatting.GOLD))
-				.append(Text.literal("Glowstone Dust\n").formatted(Formatting.YELLOW))
+				.append(Text.literal("  +Density\n\n").formatted(Formatting.GRAY))
+				.append(Text.literal("Glowstone Dust\n").styled(s -> s.withColor(0x8B6914)))
+				.append(Text.literal("  Hardness\n").formatted(Formatting.GRAY))
+				.append(Text.literal("  Corr. Resist.\n\n").formatted(Formatting.GRAY))
 				.append(Text.literal("Redstone\n").formatted(Formatting.DARK_RED))
-				.append(Text.literal("Ender Pearl\n\n").formatted(Formatting.DARK_AQUA))
-				.append(Text.literal("Effectiveness decays with amount.").formatted(Formatting.GRAY));
+				.append(Text.literal("  Toughness\n").formatted(Formatting.GRAY))
+				.append(Text.literal("  Ductility\n").formatted(Formatting.GRAY));
+	}
+
+	private static Text modifiersPage4() {
+		return Text.empty()
+				.append(Text.literal("Modifiers (cont.)\n\n").formatted(Formatting.BOLD, Formatting.DARK_GREEN))
+				.append(Text.literal("Ender Pearl\n").formatted(Formatting.DARK_AQUA))
+				.append(Text.literal("  All stats\n\n").formatted(Formatting.GRAY))
+				.append(Text.literal("Meat\n").styled(s -> s.withColor(0xBB5544)))
+				.append(Text.literal("  No effect\n\n").formatted(Formatting.GRAY))
+				.append(Text.literal("Nether Wart\n").formatted(Formatting.DARK_RED))
+				.append(Text.literal("  Removes 1 random\n  modifier item\n").formatted(Formatting.GRAY));
 	}
 
 	private static Text diversityPage() {
@@ -127,23 +162,23 @@ public class MetallurgyGuideItem extends Item {
 	private static Text moldsPage1() {
 		return Text.empty()
 				.append(Text.literal("Molds\n\n").formatted(Formatting.BOLD, Formatting.DARK_PURPLE))
-				.append(Text.literal("Made on a casting table by placing a pattern and pouring pure iron:\n\n"))
+				.append(Text.literal("Place a pattern on a casting table and pour pure iron.\n\n"))
 				.append(Text.literal("Ingot Mold\n").formatted(Formatting.BOLD))
-				.append(Text.literal("Place any ingot, pour iron\n\n"))
+				.append(Text.literal("Place any ingot\n\n"))
 				.append(Text.literal("Nugget Mold\n").formatted(Formatting.BOLD))
-				.append(Text.literal("Place any nugget, pour iron\n\n"))
+				.append(Text.literal("Place any nugget\n\n"))
 				.append(Text.literal("Rod Mold\n").formatted(Formatting.BOLD))
-				.append(Text.literal("Place a stick, pour iron"));
+				.append(Text.literal("Place a stick"));
 	}
 
 	private static Text moldsPage2() {
 		return Text.empty()
 				.append(Text.literal("Molds (cont.)\n\n").formatted(Formatting.BOLD, Formatting.DARK_PURPLE))
 				.append(Text.literal("Diamond Mold\n").formatted(Formatting.BOLD))
-				.append(Text.literal("Place a diamond, pour iron\n\n"))
+				.append(Text.literal("Place a diamond\n\n"))
 				.append(Text.literal("Emerald Mold\n").formatted(Formatting.BOLD))
-				.append(Text.literal("Place an emerald, pour iron\n\n"))
-				.append(Text.literal("Place a mold on the table and pour alloy to cast items. No mold = plate.\n\n").formatted(Formatting.GRAY))
+				.append(Text.literal("Place an emerald\n\n"))
+				.append(Text.literal("Pour alloy over a mold to cast items. No mold = plate.\n\n").formatted(Formatting.GRAY))
 				.append(Text.literal("Molds are reusable.").formatted(Formatting.GRAY));
 	}
 
@@ -160,7 +195,7 @@ public class MetallurgyGuideItem extends Item {
 				.append(Text.literal("The combined stats of the equipment's material place it into one of five tiers:\n\n"))
 				.append(Text.literal(" Tier I\n").formatted(Formatting.RED))
 				.append(Text.literal(" Tier II\n").formatted(Formatting.GOLD))
-				.append(Text.literal(" Tier III\n").formatted(Formatting.YELLOW))
+				.append(Text.literal(" Tier III\n").styled(s -> s.withColor(0x8B6914)))
 				.append(Text.literal(" Tier IV\n").formatted(Formatting.GREEN))
 				.append(Text.literal(" Tier V\n\n").formatted(Formatting.AQUA))
 				.append(Text.literal("Higher tier = stronger tools.").formatted(Formatting.GRAY));
