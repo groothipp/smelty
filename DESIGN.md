@@ -346,7 +346,7 @@ Items thrown into the smelter interior (above layer 1) are scanned every 10 tick
 1. **Registered material items** (ingots, nuggets, blocks, raw ores, plates, rods, molds): Added at their volume. If the material's required heat exceeds current heat, placed in the "unmelted" pool instead.
 2. **Alloy items** (alloy_ingot, alloy_nugget, alloy_rod, alloy_plate): Composition extracted from CustomModelData, re-normalized to the item's volume, then added. **Modifiers stored on the item are discarded** — only materials are added.
 3. **Solid alloy blocks**: Block entity data extracted, composition re-normalized to stored volume. Modifiers discarded.
-4. **Nether Wart**: Removes one random modifier type per wart (processes full stack).
+4. **Nether Wart**: Removes 1 item from a random modifier per wart (processes full stack). Modifier removed entirely if count reaches 0.
 5. **Modifier items**: Added to molten alloy (requires molten alloy to exist). Each item = 180 mL of modifier volume. Only explicitly thrown modifier items add modifiers.
 6. **Unrecognized items** in molten alloy: Destroyed with lava extinguish sound.
 
@@ -441,7 +441,9 @@ Molds are reusable -- extracting a cast item keeps the mold on the table.
 
 ## Proportional Draining
 
-When fluid is drained from an AlloyComposition, **only materials** are drained proportionally. Modifiers are never drained — they stay in the source. The drained portion receives a proportional snapshot of the source's modifiers (for cast item encoding) without removing them.
+When fluid is drained from an AlloyComposition, **only materials** are drained proportionally. Modifiers stay in the source and are never removed by draining. The drained portion receives a full copy of the source's modifier set (for cast item encoding) without removing them from the source. When materials are fully drained (volume reaches 0), modifiers are also cleared.
+
+Receivers (channels, basins, casting tables) use **set semantics** for modifiers — incoming modifiers overwrite rather than accumulate, since each drain tick copies the full modifier set.
 
 The algorithm for material draining:
 
@@ -468,7 +470,7 @@ B = sum(ratio_i * B_i)
 
 ### Modifier Tint
 
-Each modifier contributes a subtle tint: `weight = min(0.1, concentration * 0.05)`. Total modifier tint is capped at 40% influence. The final color blends material color (remaining weight) with modifier tint colors.
+Each modifier contributes a subtle tint based on item count: `weight = min(0.1, count * 0.02)`. Total modifier tint is capped at 40% influence. The final color blends material color (remaining weight) with modifier tint colors.
 
 ---
 
@@ -478,9 +480,11 @@ Alloy items store their composition in `CustomModelData.floats()`:
 
 ### Alloy Items (ingot, nugget, rod, plate)
 
-Layout: `[7 material amounts (normalized to base 20), 11 modifier amounts (normalized)]`
+Layout: `[7 material amounts (normalized to base 20), 11 modifier amounts (raw volumes)]`
 
-The coarse base of 20 (5% resolution) collapses +/- 1-2 mL rounding differences, ensuring items from the same alloy batch always stack.
+Materials use a coarse base of 20 (5% resolution) to collapse +/- 1-2 mL rounding differences, ensuring items from the same alloy batch always stack. Modifier amounts are stored as raw volumes (absolute, not scaled with materials) — all items from the same smelter receive identical modifier data since modifiers don't drain.
+
+`CustomModelData.strings()`: `[normalizedKey]` — the canonical composition key computed at cast time, used for exact name registry lookups.
 
 `CustomModelData.colors()`: `[blendedColor]` for tinting.
 
@@ -520,14 +524,14 @@ Armor move speed is displayed as an integer percentage (floored). Vanilla attrib
 
 ## Alloy Naming Registry
 
-Players can name alloy compositions via the smelter GUI. Names are stored in a world-level `PersistentState` (`AlloyRegistry`) keyed by a **normalized composition key**:
+Players can name alloy compositions via the analysis bench. Names are stored in a world-level `PersistentState` (`AlloyRegistry`) keyed by a **normalized composition key**:
 
 ```
 Format: "COPPER:30,IRON:70" (sorted by enum order, zeros omitted)
 Modifiers appended after "|": "COPPER:50,IRON:50|COAL:5"
 ```
 
-Compositions are normalized to sum to 100 before keying. Named alloys display their name on items, tools, and armor (e.g., "Bronze Sword" instead of "Alloy Sword"). The registry is synced to clients for display.
+Materials are normalized to sum to 100. Modifiers use absolute item counts (volume / MODIFIER_VOLUME). Each alloy item stores its normalized key as a string in `CustomModelData.strings()` at cast time, ensuring name lookups are exact and don't suffer from normalization rounding. Named alloys display their name on items, tools, and armor (e.g., "Bronze Sword" instead of "Alloy Sword"). The registry is synced to clients for display.
 
 ---
 
