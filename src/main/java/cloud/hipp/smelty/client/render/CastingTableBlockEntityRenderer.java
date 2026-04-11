@@ -21,6 +21,7 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 public class CastingTableBlockEntityRenderer
@@ -34,6 +35,23 @@ public class CastingTableBlockEntityRenderer
 	private static final float BX2 = 14f / 16f, BZ2 = 14f / 16f;
 	private static final float SURFACE_Y = 11f / 16f; // sunken center top
 	private static final float RIM_Y = 12f / 16f;     // rim top — mold surface level
+
+	// Modifier overlay texture name suffixes, indexed by Modifier ordinal
+	static final String[] MODIFIER_NAMES = {
+		"coal", "bonemeal", "slime", "clay", "lapis",
+		"sugar", "blaze", "glowstone", "redstone", "enderpearl", "meat"
+	};
+	// Animation frame counts per modifier (1 = static, >1 = animated multi-frame PNG)
+	static final int[] MODIFIER_FRAMES = {
+		1, 1, 1, 1, 1,   // coal, bonemeal, slime, clay, lapis
+		1, 1, 16, 16, 32, 1  // sugar, blaze, glowstone, redstone, enderpearl, meat
+	};
+	// Animation frametime (ticks per frame) for animated modifiers in BER.
+	// Doubled vs .mcmeta values to compensate for lack of frame interpolation.
+	static final int[] MODIFIER_FRAMETIME = {
+		1, 1, 1, 1, 1,
+		1, 1, 12, 12, 16, 1
+	};
 
 	// Mold textures (iron block with item shape cut out)
 	private static final Identifier INGOT_MOLD_TEX = Identifier.of("smelty", "textures/item/ingot_mold.png");
@@ -164,6 +182,12 @@ public class CastingTableBlockEntityRenderer
 			state.solidItemColor = isAlloyItem(outItem)
 					? (entity.getColor() | 0xFF000000) : 0xFFFFFFFF;
 		}
+
+		// Populate modifier overlay data for alloy items
+		if (isAlloyItem(outItem)) {
+			state.modifierFlags = entity.getFluidComposition().getModifierFlags();
+			state.overlayPrefix = getAlloyOverlayPrefix(outItem);
+		}
 	}
 
 	@Override
@@ -183,6 +207,9 @@ public class CastingTableBlockEntityRenderer
 			if (state.solidItemTexture != null) {
 				float itemY = state.solidMoldTexture != null ? RIM_Y - 0.001f : SURFACE_Y + 0.001f;
 				renderSprite(matrices, queue, state.solidItemTexture, itemY, state.solidItemColor);
+				// Render modifier overlays on top of base, below mold
+				renderModifierOverlays(matrices, queue, state.modifierFlags, state.overlayPrefix,
+						itemY + 0.001f, state.animationTime);
 			}
 			if (state.solidMoldTexture != null) {
 				renderSprite(matrices, queue, state.solidMoldTexture, RIM_Y, 0xFFFFFFFF);
@@ -218,17 +245,45 @@ public class CastingTableBlockEntityRenderer
 		}
 	}
 
+	/** Render modifier overlay quads for each active modifier. */
+	private void renderModifierOverlays(MatrixStack matrices, OrderedRenderCommandQueue queue,
+			List<Boolean> flags, String prefix, float y, float animationTime) {
+		if (flags == null || prefix == null) return;
+		for (int i = 0; i < flags.size() && i < MODIFIER_NAMES.length; i++) {
+			if (flags.get(i)) {
+				Identifier overlayTex = Identifier.of("smelty",
+						"textures/item/overlay/" + prefix + "_" + MODIFIER_NAMES[i] + ".png");
+				int frameCount = MODIFIER_FRAMES[i];
+				if (frameCount <= 1) {
+					renderSprite(matrices, queue, overlayTex, y, 0xFFFFFFFF);
+				} else {
+					int frametime = MODIFIER_FRAMETIME[i];
+					int frame = ((int) animationTime / frametime) % frameCount;
+					float v0 = (float) frame / frameCount;
+					float v1 = (float) (frame + 1) / frameCount;
+					renderSpriteUV(matrices, queue, overlayTex, y, 0xFFFFFFFF, v0, v1);
+				}
+			}
+		}
+	}
+
 	/** Render a texture as a flat quad filling the basin area. */
 	private void renderSprite(MatrixStack matrices, OrderedRenderCommandQueue queue,
 			Identifier texture, float y, int color) {
+		renderSpriteUV(matrices, queue, texture, y, color, 0, 1);
+	}
+
+	/** Render a texture as a flat quad with custom V coordinates (for animated texture frame selection). */
+	private void renderSpriteUV(MatrixStack matrices, OrderedRenderCommandQueue queue,
+			Identifier texture, float y, int color, float v0, float v1) {
 		var renderLayer = RenderLayers.entityCutout(texture);
 		matrices.push();
 		queue.submitCustom(matrices, renderLayer, (entry, vc) -> {
 			Matrix4f matrix = entry.getPositionMatrix();
-			vc.vertex(matrix, BX1, y, BZ1).color(color).texture(0, 0).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
-			vc.vertex(matrix, BX1, y, BZ2).color(color).texture(0, 1).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
-			vc.vertex(matrix, BX2, y, BZ2).color(color).texture(1, 1).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
-			vc.vertex(matrix, BX2, y, BZ1).color(color).texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+			vc.vertex(matrix, BX1, y, BZ1).color(color).texture(0, v0).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+			vc.vertex(matrix, BX1, y, BZ2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+			vc.vertex(matrix, BX2, y, BZ2).color(color).texture(1, v1).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+			vc.vertex(matrix, BX2, y, BZ1).color(color).texture(1, v0).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
 		});
 		matrices.pop();
 	}
@@ -258,6 +313,15 @@ public class CastingTableBlockEntityRenderer
 		vc.vertex(matrix, x2, y2, z2).color(color).texture(0, v1).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(0, 0, 1);
 	}
 
+	/** Get the overlay texture prefix for an alloy output item (e.g., "plate", "ingot"). */
+	static String getAlloyOverlayPrefix(Item item) {
+		if (item == SmeltyItems.ALLOY_PLATE) return "plate";
+		if (item == SmeltyItems.ALLOY_INGOT) return "ingot";
+		if (item == SmeltyItems.ALLOY_NUGGET) return "nugget";
+		if (item == SmeltyItems.ALLOY_ROD) return "rod";
+		return null;
+	}
+
 	public static class RenderState extends BlockEntityRenderState {
 		public int fluidLevel;
 		public float fillRatio;
@@ -270,5 +334,8 @@ public class CastingTableBlockEntityRenderer
 		public Identifier solidItemTexture;
 		public int solidItemColor;
 		public Identifier solidMoldTexture;
+		// Modifier overlays for solidified alloy items
+		public List<Boolean> modifierFlags;
+		public String overlayPrefix;
 	}
 }

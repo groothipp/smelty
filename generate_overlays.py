@@ -103,8 +103,8 @@ MODIFIERS = [
         # Julia set with spiral/helix-like arms (Siegel disk region)
         "color_a": (0x0C, 0x7E, 0x5E),  # green-teal
         "color_b": (0x4C, 0x3E, 0x6E),  # purple-teal
-        "c_real": 0.285,
-        "c_imag": 0.01,
+        "c_real": -0.4,
+        "c_imag": 0.6,
         "frames": 32,
         "frametime": 8,
         "seed": 6,

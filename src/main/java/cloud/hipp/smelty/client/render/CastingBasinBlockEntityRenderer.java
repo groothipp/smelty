@@ -15,6 +15,8 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
+import java.util.List;
+
 public class CastingBasinBlockEntityRenderer
 		implements BlockEntityRenderer<CastingBasinBlockEntity, CastingBasinBlockEntityRenderer.RenderState> {
 
@@ -40,6 +42,8 @@ public class CastingBasinBlockEntityRenderer
 		state.color = entity.getColor();
 		state.solidified = entity.isSolidified();
 		state.animationTime = entity.getWorld() != null ? entity.getWorld().getTime() + tickDelta : 0;
+		state.modifierFlags = entity.isSolidified()
+				? entity.getFluidComposition().getModifierFlags() : null;
 	}
 
 	@Override
@@ -80,6 +84,40 @@ public class CastingBasinBlockEntityRenderer
 			renderBox(vc, matrix, x1, y1, z1, x2, y2, z2, color, light, v0, vMax);
 		});
 		matrices.pop();
+
+		// Render modifier overlays on the top face when solidified
+		if (state.solidified && state.modifierFlags != null) {
+			float overlayY = y2 + 0.001f;
+			for (int i = 0; i < state.modifierFlags.size()
+					&& i < CastingTableBlockEntityRenderer.MODIFIER_NAMES.length; i++) {
+				if (state.modifierFlags.get(i)) {
+					Identifier overlayTex = Identifier.of("smelty",
+							"textures/item/overlay/plate_"
+							+ CastingTableBlockEntityRenderer.MODIFIER_NAMES[i] + ".png");
+					int frameCount = CastingTableBlockEntityRenderer.MODIFIER_FRAMES[i];
+					float ov0, ov1;
+					if (frameCount <= 1) {
+						ov0 = 0; ov1 = 1;
+					} else {
+						int frametime = CastingTableBlockEntityRenderer.MODIFIER_FRAMETIME[i];
+						int frame = ((int) state.animationTime / frametime) % frameCount;
+						ov0 = (float) frame / frameCount;
+						ov1 = (float) (frame + 1) / frameCount;
+					}
+					final float fov0 = ov0, fov1 = ov1;
+					var overlayLayer = RenderLayers.entityCutout(overlayTex);
+					matrices.push();
+					queue.submitCustom(matrices, overlayLayer, (entry, vc) -> {
+						Matrix4f matrix = entry.getPositionMatrix();
+						vc.vertex(matrix, x1, overlayY, z1).color(0xFFFFFFFF).texture(0, fov0).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+						vc.vertex(matrix, x1, overlayY, z2).color(0xFFFFFFFF).texture(0, fov1).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+						vc.vertex(matrix, x2, overlayY, z2).color(0xFFFFFFFF).texture(1, fov1).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+						vc.vertex(matrix, x2, overlayY, z1).color(0xFFFFFFFF).texture(1, fov0).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+					});
+					matrices.pop();
+				}
+			}
+		}
 	}
 
 	private void renderBox(VertexConsumer vc, Matrix4f matrix,
@@ -123,5 +161,6 @@ public class CastingBasinBlockEntityRenderer
 		public int color;
 		public boolean solidified;
 		public float animationTime;
+		public List<Boolean> modifierFlags;
 	}
 }

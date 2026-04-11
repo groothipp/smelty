@@ -20,6 +20,8 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
+import java.util.List;
+
 public class AnalysisBenchBlockEntityRenderer
 		implements BlockEntityRenderer<AnalysisBenchBlockEntity, AnalysisBenchBlockEntityRenderer.RenderState> {
 
@@ -44,10 +46,19 @@ public class AnalysisBenchBlockEntityRenderer
 		state.plateTexture = null;
 		state.plateColor = 0xFFFFFFFF;
 
+		state.modifierFlags = null;
+		state.animationTime = entity.getWorld() != null ? entity.getWorld().getTime() + tickDelta : 0;
+
 		if (entity.hasPlate()) {
 			ItemStack plate = entity.getPlateItem();
 			state.plateTexture = getPlateTexture(plate);
 			state.plateColor = getPlateColor(plate);
+			if (plate.getItem() == SmeltyItems.ALLOY_PLATE) {
+				CustomModelDataComponent cmd = plate.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+				if (cmd != null && !cmd.flags().isEmpty()) {
+					state.modifierFlags = cmd.flags();
+				}
+			}
 		}
 	}
 
@@ -91,10 +102,46 @@ public class AnalysisBenchBlockEntityRenderer
 			vc.vertex(matrix, PX2, PLATE_Y, PZ1).color(color).texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
 		});
 		matrices.pop();
+
+		// Render modifier overlays
+		if (state.modifierFlags != null) {
+			float overlayY = PLATE_Y + 0.001f;
+			for (int i = 0; i < state.modifierFlags.size()
+					&& i < CastingTableBlockEntityRenderer.MODIFIER_NAMES.length; i++) {
+				if (state.modifierFlags.get(i)) {
+					Identifier overlayTex = Identifier.of("smelty",
+							"textures/item/overlay/plate_"
+							+ CastingTableBlockEntityRenderer.MODIFIER_NAMES[i] + ".png");
+					int frameCount = CastingTableBlockEntityRenderer.MODIFIER_FRAMES[i];
+					float ov0, ov1;
+					if (frameCount <= 1) {
+						ov0 = 0; ov1 = 1;
+					} else {
+						int frametime = CastingTableBlockEntityRenderer.MODIFIER_FRAMETIME[i];
+						int frame = ((int) state.animationTime / frametime) % frameCount;
+						ov0 = (float) frame / frameCount;
+						ov1 = (float) (frame + 1) / frameCount;
+					}
+					final float fov0 = ov0, fov1 = ov1;
+					var overlayLayer = RenderLayers.entityCutout(overlayTex);
+					matrices.push();
+					queue.submitCustom(matrices, overlayLayer, (entry, vc) -> {
+						Matrix4f matrix = entry.getPositionMatrix();
+						vc.vertex(matrix, PX1, overlayY, PZ1).color(0xFFFFFFFF).texture(0, fov0).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+						vc.vertex(matrix, PX1, overlayY, PZ2).color(0xFFFFFFFF).texture(0, fov1).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+						vc.vertex(matrix, PX2, overlayY, PZ2).color(0xFFFFFFFF).texture(1, fov1).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+						vc.vertex(matrix, PX2, overlayY, PZ1).color(0xFFFFFFFF).texture(1, fov0).overlay(OverlayTexture.DEFAULT_UV).light(15728880).normal(0, 1, 0);
+					});
+					matrices.pop();
+				}
+			}
+		}
 	}
 
 	public static class RenderState extends BlockEntityRenderState {
 		public Identifier plateTexture;
 		public int plateColor;
+		public List<Boolean> modifierFlags;
+		public float animationTime;
 	}
 }
