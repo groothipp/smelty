@@ -466,25 +466,22 @@ public class AlloyComposition {
 			g += ratio * ((color >> 8) & 0xFF);
 			b += ratio * (color & 0xFF);
 		}
-		// Apply modifier tint influence (subtle — each modifier contributes up to 10% tint)
-		double totalModWeight = 0;
-		double mr = 0, mg = 0, mb = 0;
-		for (var entry : modifiers.entrySet()) {
-			int count = entry.getValue() / MODIFIER_VOLUME;
-			double weight = Math.min(0.1, count * 0.02);
-			totalModWeight += weight;
-			int tint = entry.getKey().getTintColor();
-			mr += weight * ((tint >> 16) & 0xFF);
-			mg += weight * ((tint >> 8) & 0xFF);
-			mb += weight * (tint & 0xFF);
-		}
-		if (totalModWeight > 0) {
-			double matWeight = 1.0 - Math.min(totalModWeight, 0.4);
-			r = r * matWeight + mr;
-			g = g * matWeight + mg;
-			b = b * matWeight + mb;
-		}
+		// Modifier visual effects are now rendered as separate overlay textures
+		// (driven by CustomModelDataComponent flags), not blended into the base color.
 		return ((int) Math.min(255, r) << 16) | ((int) Math.min(255, g) << 8) | (int) Math.min(255, b);
+	}
+
+	/**
+	 * Returns a list of boolean flags indicating which modifiers are present.
+	 * Each flag index corresponds to the Modifier enum ordinal.
+	 * Used by CustomModelDataComponent to drive conditional overlay rendering.
+	 */
+	public java.util.List<Boolean> getModifierFlags() {
+		java.util.List<Boolean> flags = new java.util.ArrayList<>();
+		for (Modifier mod : Modifier.values()) {
+			flags.add(modifiers.containsKey(mod) && modifiers.get(mod) > 0);
+		}
+		return flags;
 	}
 
 	public int getRequiredHeat() {

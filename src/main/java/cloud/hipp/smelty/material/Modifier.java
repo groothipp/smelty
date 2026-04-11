@@ -152,4 +152,17 @@ public enum Modifier {
 	public static int getMultiplier(Item item) {
 		return ITEM_MULTIPLIER.getOrDefault(item, 1);
 	}
+
+	/**
+	 * Check if an item stack has a specific modifier present.
+	 * Reads from CustomModelDataComponent flags (one boolean per modifier ordinal).
+	 */
+	public static boolean hasModifier(net.minecraft.item.ItemStack stack, Modifier modifier) {
+		net.minecraft.component.type.CustomModelDataComponent cmd =
+				stack.get(net.minecraft.component.DataComponentTypes.CUSTOM_MODEL_DATA);
+		if (cmd == null) return false;
+		java.util.List<Boolean> flags = cmd.flags();
+		int idx = modifier.ordinal();
+		return idx < flags.size() && flags.get(idx);
+	}
 }

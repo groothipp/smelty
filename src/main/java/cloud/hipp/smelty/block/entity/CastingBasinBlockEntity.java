@@ -179,7 +179,7 @@ public class CastingBasinBlockEntity extends BlockEntity implements Inventory {
 			}
 			stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 					new CustomModelDataComponent(
-							percentages, java.util.List.of(), java.util.List.of(normalizedKey),
+							percentages, fluidComposition.getModifierFlags(), java.util.List.of(normalizedKey),
 							java.util.List.of(fluidComposition.getBlendedColor())));
 			AlloyRegistry registry = AlloyRegistry.get(serverWorld);
 			String alloyName = registry.getAlloyName(fluidComposition);

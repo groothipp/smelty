@@ -6,6 +6,7 @@ import cloud.hipp.smelty.block.entity.SmeltyBlockEntities;
 import cloud.hipp.smelty.item.SmeltyItems;
 import cloud.hipp.smelty.material.AlloyComposition;
 import cloud.hipp.smelty.material.AlloyRegistry;
+import cloud.hipp.smelty.material.Modifier;
 import cloud.hipp.smelty.network.RenameAlloyPayload;
 import cloud.hipp.smelty.network.SyncAlloyRegistryPayload;
 import cloud.hipp.smelty.network.SyncSmelterDataPayload;
@@ -13,11 +14,21 @@ import cloud.hipp.smelty.screen.SmeltyScreenHandlers;
 import cloud.hipp.smelty.tool.SmeltyArmorRecipeSerializer;
 import cloud.hipp.smelty.tool.SmeltyToolRecipeSerializer;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.ActionResult;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +46,7 @@ public class Smelty implements ModInitializer {
 		SmeltyToolRecipeSerializer.initialize();
 		SmeltyArmorRecipeSerializer.initialize();
 		registerNetworking();
+		registerMeatSquishEvents();
 		LOGGER.info("Smelty initialized!");
 	}
 
@@ -81,6 +93,54 @@ public class Smelty implements ModInitializer {
 					}
 				}
 			});
+		});
+	}
+
+	private void registerMeatSquishEvents() {
+		// Squish on attack (tool hitting entity)
+		AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+			if (!world.isClient()) {
+				ItemStack mainHand = player.getMainHandStack();
+				if (Modifier.hasModifier(mainHand, Modifier.MEAT)) {
+					world.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
+							SoundEvents.ENTITY_SLIME_SQUISH, SoundCategory.PLAYERS, 0.6f, 0.8f + world.random.nextFloat() * 0.4f);
+				}
+			}
+			return ActionResult.PASS;
+		});
+
+		// Squish on block break (tool mining)
+		PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+			ItemStack mainHand = player.getMainHandStack();
+			if (Modifier.hasModifier(mainHand, Modifier.MEAT)) {
+				world.playSound(null, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+						SoundEvents.ENTITY_SLIME_SQUISH, SoundCategory.PLAYERS, 0.4f, 0.9f + world.random.nextFloat() * 0.2f);
+			}
+		});
+
+		// Squish when armor with meat modifier gets hit
+		net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamage, damageTaken, blocked) -> {
+			if (damageTaken > 0 && entity instanceof LivingEntity living) {
+				for (EquipmentSlot slot : new EquipmentSlot[]{
+						EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+					ItemStack armor = living.getEquippedStack(slot);
+					if (Modifier.hasModifier(armor, Modifier.MEAT)) {
+						entity.getEntityWorld().playSound(null, entity.getX(), entity.getY(), entity.getZ(),
+								SoundEvents.ENTITY_SLIME_SQUISH, SoundCategory.PLAYERS, 0.5f, 0.7f + entity.getEntityWorld().random.nextFloat() * 0.3f);
+						break; // one squish per hit, not per armor piece
+					}
+				}
+			}
+		});
+
+		// Squish when meat-modified item is dropped (item entity spawns)
+		ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+			if (entity instanceof ItemEntity itemEntity && entity.age == 0) {
+				if (Modifier.hasModifier(itemEntity.getStack(), Modifier.MEAT)) {
+					world.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
+							SoundEvents.ENTITY_SLIME_SQUISH, SoundCategory.PLAYERS, 0.5f, 1.0f + world.random.nextFloat() * 0.2f);
+				}
+			}
 		});
 	}
 }

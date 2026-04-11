@@ -85,7 +85,7 @@ public class SolidAlloyBlockEntity extends BlockEntity {
 		}
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
-						percentages, List.of(), List.of(normalizedKey),
+						percentages, composition.getModifierFlags(), List.of(normalizedKey),
 						List.of(composition.getBlendedColor())));
 		AlloyRegistry registry = AlloyRegistry.get(serverWorld);
 		String alloyName = registry.getAlloyName(normalizedKey);

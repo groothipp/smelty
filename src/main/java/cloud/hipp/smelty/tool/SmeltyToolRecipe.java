@@ -161,7 +161,7 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 				? normalizedHandle.getBlendedColor() : STICK_COLOR;
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
-						floats, List.of(), List.of(),
+						floats, combined.getModifierFlags(), List.of(),
 						List.of(normalizedHead.getBlendedColor(), handleColor)));
 
 		// Set durability

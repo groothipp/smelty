@@ -1,12 +1,149 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "smelty:item/alloy_rod",
-    "tints": [
+    "type": "minecraft:composite",
+    "models": [
       {
-        "type": "minecraft:custom_model_data",
+        "type": "minecraft:model",
+        "model": "smelty:item/alloy_rod",
+        "tints": [
+          {
+            "type": "minecraft:custom_model_data",
+            "index": 0,
+            "default": 10526880
+          }
+        ]
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
         "index": 0,
-        "default": 10526880
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_coal"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 1,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_bonemeal"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 2,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_slime"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 3,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_clay"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 4,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_lapis"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 5,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_sugar"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 6,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_blaze"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 7,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_glowstone"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 8,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_redstone"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 9,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_enderpearl"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 10,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/rod_meat"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
       }
     ]
   }

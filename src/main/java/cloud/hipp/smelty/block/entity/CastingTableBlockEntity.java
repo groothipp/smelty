@@ -414,7 +414,7 @@ public class CastingTableBlockEntity extends BlockEntity {
 		}
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
-						percentages, java.util.List.of(), java.util.List.of(normalizedKey),
+						percentages, fluidComposition.getModifierFlags(), java.util.List.of(normalizedKey),
 						java.util.List.of(fluidComposition.getBlendedColor())));
 		return stack;
 	}

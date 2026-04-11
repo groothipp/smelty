@@ -91,7 +91,7 @@ public class SmeltyArmorRecipe extends SpecialCraftingRecipe {
 		percentages.add((float) composition.getTier());
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
-						percentages, List.of(), List.of(),
+						percentages, composition.getModifierFlags(), List.of(),
 						List.of(normalizedComp.getBlendedColor())));
 
 		// Set durability

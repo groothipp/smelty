@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "smelty:item/overlay/leggings_redstone"
+  }
+}
