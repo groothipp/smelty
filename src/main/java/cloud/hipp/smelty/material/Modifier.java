@@ -155,7 +155,9 @@ public enum Modifier {
 
 	/**
 	 * Check if an item stack has a specific modifier present.
-	 * Reads from CustomModelDataComponent flags (one boolean per modifier ordinal).
+	 * Reads from CustomModelDataComponent flags. For basic items, flags are
+	 * [0..10] (one per modifier). For tools, flags are [0..10] head + [11..21] handle.
+	 * Returns true if the modifier is present in either set.
 	 */
 	public static boolean hasModifier(net.minecraft.item.ItemStack stack, Modifier modifier) {
 		net.minecraft.component.type.CustomModelDataComponent cmd =
@@ -163,6 +165,12 @@ public enum Modifier {
 		if (cmd == null) return false;
 		java.util.List<Boolean> flags = cmd.flags();
 		int idx = modifier.ordinal();
-		return idx < flags.size() && flags.get(idx);
+		int count = values().length;
+		// Check first set (head / primary)
+		if (idx < flags.size() && flags.get(idx)) return true;
+		// Check second set (handle) if present
+		int handleIdx = count + idx;
+		if (handleIdx < flags.size() && flags.get(handleIdx)) return true;
+		return false;
 	}
 }

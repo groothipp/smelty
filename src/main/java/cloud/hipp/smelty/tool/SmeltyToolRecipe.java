@@ -159,9 +159,17 @@ public class SmeltyToolRecipe extends SpecialCraftingRecipe {
 		floats.add((float) combined.getTier());
 		int handleColor = normalizedHandle != null
 				? normalizedHandle.getBlendedColor() : STICK_COLOR;
+		// Modifier flags: [0..10] = head modifiers, [11..21] = handle modifiers
+		// Head and handle get separate overlays so each part shows only its own modifiers.
+		java.util.List<Boolean> headFlags = headComp.getModifierFlags();
+		java.util.List<Boolean> handleFlags = handleComp != null
+				? handleComp.getModifierFlags()
+				: java.util.Collections.nCopies(headFlags.size(), false);
+		java.util.List<Boolean> allFlags = new java.util.ArrayList<>(headFlags);
+		allFlags.addAll(handleFlags);
 		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
 				new CustomModelDataComponent(
-						floats, combined.getModifierFlags(), List.of(),
+						floats, allFlags, List.of(),
 						List.of(normalizedHead.getBlendedColor(), handleColor)));
 
 		// Set durability

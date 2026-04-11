@@ -24,17 +24,25 @@ ITEMS_DIR = os.path.join(PROJECT_ROOT, "src/main/resources/assets/smelty/items")
 # Base item types (non-tool, non-armor)
 BASIC_ITEMS = ["alloy_ingot", "alloy_nugget", "alloy_rod", "alloy_plate"]
 
-# Tool head textures (overlays applied to head only)
+# Tool head textures (overlays for the head/blade part)
 TOOL_HEADS = [
     "alloy_sword_head", "alloy_pickaxe_head", "alloy_axe_head",
     "alloy_hoe_head", "alloy_shovel_head", "alloy_spear_head",
 ]
 
+# Tool handle textures (overlays for the hilt/handle part)
+TOOL_HANDLES = [
+    "alloy_sword_handle", "alloy_pickaxe_handle", "alloy_axe_handle",
+    "alloy_hoe_handle", "alloy_shovel_handle", "alloy_spear_handle",
+]
+
 # Armor textures (single-layer items)
 ARMOR_ITEMS = ["alloy_helmet", "alloy_chestplate", "alloy_leggings", "alloy_boots"]
 
-# All item types that get overlays
-ALL_ITEMS = BASIC_ITEMS + TOOL_HEADS + ARMOR_ITEMS
+# All item types that get overlays (heads + handles + basic + armor)
+ALL_ITEMS = BASIC_ITEMS + TOOL_HEADS + TOOL_HANDLES + ARMOR_ITEMS
+
+NUM_MODIFIERS = 11  # len(MODIFIERS), used for flag index offsets
 
 # Modifier definitions: (name, effect_type, effect_params)
 MODIFIERS = [
@@ -437,11 +445,12 @@ def generate_tool_item_definition(tool_name):
     """Generate tool item definition with composite overlay system.
 
     Tools have head (layer0, tint 0) + handle (layer1, tint 1).
-    Overlays are applied on top of both layers.
+    Head modifier overlays use flags[0..10], handle overlays use flags[11..21].
     """
-    # Tool name like "alloy_sword" -> head texture is "alloy_sword_head"
     head_name = f"{tool_name}_head"
+    handle_name = f"{tool_name}_handle"
     short_head = head_name.replace("alloy_", "")
+    short_handle = handle_name.replace("alloy_", "")
 
     models = []
 
@@ -455,7 +464,7 @@ def generate_tool_item_definition(tool_name):
         ]
     })
 
-    # Conditional overlays for each modifier (using head overlay textures)
+    # Head modifier overlays — flags[0..10]
     for i, (mod_name, _, _) in enumerate(MODIFIERS):
         models.append({
             "type": "minecraft:condition",
@@ -464,6 +473,21 @@ def generate_tool_item_definition(tool_name):
             "on_true": {
                 "type": "minecraft:model",
                 "model": f"smelty:item/overlay/{short_head}_{mod_name}",
+            },
+            "on_false": {
+                "type": "minecraft:empty",
+            }
+        })
+
+    # Handle modifier overlays — flags[11..21]
+    for i, (mod_name, _, _) in enumerate(MODIFIERS):
+        models.append({
+            "type": "minecraft:condition",
+            "property": "minecraft:custom_model_data",
+            "index": NUM_MODIFIERS + i,
+            "on_true": {
+                "type": "minecraft:model",
+                "model": f"smelty:item/overlay/{short_handle}_{mod_name}",
             },
             "on_false": {
                 "type": "minecraft:empty",

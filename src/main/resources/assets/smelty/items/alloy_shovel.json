@@ -149,6 +149,138 @@
         "on_false": {
           "type": "minecraft:empty"
         }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 11,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_coal"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 12,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_bonemeal"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 13,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_slime"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 14,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_clay"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 15,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_lapis"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 16,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_sugar"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 17,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_blaze"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 18,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_glowstone"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 19,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_redstone"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 20,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_enderpearl"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "property": "minecraft:custom_model_data",
+        "index": 21,
+        "on_true": {
+          "type": "minecraft:model",
+          "model": "smelty:item/overlay/shovel_handle_meat"
+        },
+        "on_false": {
+          "type": "minecraft:empty"
+        }
       }
     ]
   }
